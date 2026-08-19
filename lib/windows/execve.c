@@ -268,7 +268,15 @@ __spawn (char const *file_name, char **argv, char **env)
   params = out[0];
 
   /* hStdInput, hStdOutput and hStdError are at 0x18, 0x1c and 0x20 into the
-   * block: the same three words __stdslot points into here. */
+   * block: the same three words __stdslot points into here.
+   *
+   * This works under wine and does not work on Windows, and the difference is
+   * not understood -- see the head of stage0-pe32's x86/M2libc-windows/
+   * process.c, where the same code is and where what was measured is written
+   * down.  A child still runs, still reads and writes files it opens itself,
+   * and still reports its exit status; only handles it was given rather than
+   * opened are affected.  Nothing in Mes spawns anything, so nothing here
+   * depends on it yet. */
   slot = __stdslot (0);
   params[6] = slot[0];
   slot = __stdslot (1);
