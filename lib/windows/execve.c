@@ -34,11 +34,101 @@
  * be called before anything happens.
  *
  * Windows hands a child one string rather than a vector, so argv is joined
- * with spaces and lib/windows/x86-mes-m2/crt1.M1 splits it again at the other
- * end -- and that splitting knows nothing about quotes, so an argument with a
- * space in it arrives as two.
+ * into one here and crt1.M1 splits it again at the other end.  Both halves
+ * follow the rule CommandLineToArgvW defines, which is the one every Windows
+ * program is parsed by, so an argument survives the round trip whatever is in
+ * it.  See next_token in lib/m2/x86/ntdll-i386.hex2 for the other side.
  */
 
+/* The closing quote of a quoted argument.  A function of its own because
+ * __quote_arg reaches the end from two places. */
+int
+__quote_close (char *dst, int at)
+{
+  dst[at] = '"';
+  return at + 1;
+}
+
+/* One argument, written into dst at `at` the way CommandLineToArgvW will read
+ * it back, and where the next one would go.
+ *
+ * An argument with nothing awkward in it is written as it stands.  One with a
+ * space, a tab or a quote is wrapped in quotes, and two things then have to be
+ * escaped inside: a quote becomes \", and any run of backslashes about to be
+ * followed by a quote -- the escaped one, or the one that closes the argument
+ * -- is doubled, so the reader can tell a backslash that is text from one
+ * protecting the quote after it.  A run anywhere else is left alone.
+ *
+ * C:\dir\ is the case that makes this necessary rather than pedantic: written
+ * naively it would end ...dir\", and the reader would take that backslash to
+ * be protecting the closing quote and swallow the rest of the command line. */
+int
+__quote_arg (char *dst, int at, char *arg)
+{
+  int i;
+  int n;
+  int plain;
+
+  plain = 1;
+  if (arg[0] == 0)
+    plain = 0;
+  i = 0;
+  while (arg[i] != 0)
+    {
+      if (arg[i] == ' ' || arg[i] == '\t' || arg[i] == '"')
+        plain = 0;
+      i = i + 1;
+    }
+
+  if (plain != 0)
+    {
+      i = 0;
+      while (arg[i] != 0)
+        {
+          dst[at] = arg[i];
+          at = at + 1;
+          i = i + 1;
+        }
+      return at;
+    }
+
+  dst[at] = '"';
+  at = at + 1;
+  i = 0;
+  while (arg[i] != 0)
+    {
+      n = 0;
+      while (arg[i] == '\\')
+        {
+          n = n + 1;
+          i = i + 1;
+        }
+
+      if (arg[i] == 0)
+        n = 2 * n;              /* the run runs into the closing quote */
+      else if (arg[i] == '"')
+        n = 2 * n + 1;          /* and the odd one protects the quote */
+
+      while (n > 0)
+        {
+          dst[at] = '\\';
+          at = at + 1;
+          n = n - 1;
+        }
+
+      if (arg[i] == 0)
+        return __quote_close (dst, at);
+
+      dst[at] = arg[i];
+      at = at + 1;
+      i = i + 1;
+    }
+  return __quote_close (dst, at);
+}
+
+/* argv as the single command line Windows gives a child.  Room for twice each
+ * argument plus its quotes, which is the worst an argument of nothing but
+ * backslashes and quotes could come to. */
 char *
 __cmdline (char **argv)
 {
@@ -57,7 +147,7 @@ __cmdline (char **argv)
       j = 0;
       while (a[j] != 0)
         j = j + 1;
-      n = n + j + 1;
+      n = n + 2 * j + 3;
       i = i + 1;
     }
 
@@ -71,14 +161,7 @@ __cmdline (char **argv)
           out[at] = ' ';
           at = at + 1;
         }
-      a = argv[i];
-      j = 0;
-      while (a[j] != 0)
-        {
-          out[at] = a[j];
-          at = at + 1;
-          j = j + 1;
-        }
+      at = __quote_arg (out, at, argv[i]);
       i = i + 1;
     }
   out[at] = 0;

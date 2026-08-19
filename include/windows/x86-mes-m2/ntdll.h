@@ -22,7 +22,7 @@
 
 /* Which ntdll routine lib/m2/x86/ntdll-i386.hex2 resolved into which slot.
  * The numbering is decided there and nowhere else, so this half is copied
- * from stage0-pe32 a677ddb (x86/M2libc-windows/ntdll-slots.h), which that
+ * from stage0-pe32 29a56b1 (x86/M2libc-windows/ntdll-slots.h), which that
  * project generates from the same list it generates the .hex2 from.  If the
  * .hex2 beside it is updated, this must be too.
  */
