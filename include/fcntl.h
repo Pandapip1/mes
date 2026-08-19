@@ -32,7 +32,11 @@
 #else // ! SYSTEM_LIBC
 
 // *INDENT-OFF*
-#if __linux__
+/* Windows shares Linux's numbers here because nothing on Windows consults
+ * them directly: lib/windows/_open3.c reads the flags and works out the
+ * DesiredAccess and CreateDisposition NtCreateFile actually wants.  Picking
+ * the same constants means every caller above is unchanged. */
+#if __linux__ || __windows__
 #define O_RDONLY          0
 #define O_WRONLY          1
 #define O_RDWR            2

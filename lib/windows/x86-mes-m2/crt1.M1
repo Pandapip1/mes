@@ -1,0 +1,192 @@
+### GNU Mes --- Maxwell Equations of Software
+### Copyright © 2017,2018,2019,2023 Jan (janneke) Nieuwenhuizen <janneke@gnu.org>
+### Copyright © 2026 Gavin John
+###
+### This file is part of GNU Mes.
+###
+### GNU Mes is free software; you can redistribute it and/or modify it
+### under the terms of the GNU General Public License as published by
+### the Free Software Foundation; either version 3 of the License, or (at
+### your option) any later version.
+###
+### GNU Mes is distributed in the hope that it will be useful, but
+### WITHOUT ANY WARRANTY; without even the implied warranty of
+### MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+### GNU General Public License for more details.
+###
+### You should have received a copy of the GNU General Public License
+### along with GNU Mes.  If not, see <http://www.gnu.org/licenses/>.
+
+### The Windows _start, standing in for lib/linux/x86-mes-m2/crt1.M1.
+###
+### Linux hands a program argc and argv already on the stack, so that crt1 is
+### nine instructions of rearranging.  Windows hands it one UTF-16 string and
+### nothing else, so this has to find ntdll, resolve what the program will
+### need out of its export table, split the command line, and narrow it,
+### before there is an argc and an argv to pass to anything.
+###
+### resolve_all, next_token and the fn_ slots come from lib/m2/x86/ntdll-i386.hex2,
+### which hex2 puts in front of this the way it puts the PE header in front of
+### both.  See that file for why a program here imports nothing at all.
+###
+### The memory past the end of the image is mapped, writable and already zero
+### -- lib/m2/x86/PE32-i386.hex2 gives the image a section whose VirtualSize
+### runs to the top -- and this divides the start of it up, measured from
+### :PE_end, the last label the program emits:
+###
+###   +0x00000   argv, 256 pointers
+###   +0x00400   the argument strings themselves
+###   +0x08000   one path, widened to UTF-16 for ntdll
+###   +0x10000   envp, 1024 pointers
+###   +0x11000   the environment strings themselves
+###
+### The heap is not here.  lib/windows/brk.c asks the system for it, because
+### Mes's collector wants a quarter of a gigabyte in one piece and no image
+### size answers that honestly.
+###
+### Nothing checks those bounds.  A command line of more than 256 arguments or
+### 31KB would run past its own area, and this is the layer below the one that
+### could report it.
+
+### Instructions neither lib/m2/x86/x86_defs.M1 nor lib/x86-mes/x86.M1 names.
+### A DEFINE is global to the whole assembly, so this is where the rest of
+### lib/windows/ gets the handful its asm () needs too -- the esi forms and the
+### 64-bit divide in lib/windows/gettimeofday.c, below.
+###
+### An undefined mnemonic is not an error M1 reports: it passes the token
+### through, hex2 cannot make sense of it either, and the instruction is
+### silently dropped.  The binary comes out a few bytes short and faults
+### somewhere unrelated.  Check with stage0-pe32's check_mnemonics.py against
+### this file, x86_defs.M1 and x86.M1.
+DEFINE add_ebx, 81C3
+DEFINE add_ecx, 81C1
+DEFINE add_edi, 81C7
+DEFINE add_edx, 81C2
+DEFINE call_[DWORD] FF15
+DEFINE cmp_eax, 83F8
+DEFINE jg 0F8F
+DEFINE mov_al,[edx] 8A02
+DEFINE mov_ebp, BD
+DEFINE mov_ebx,ebp 89EB
+DEFINE mov_ecx, B9
+DEFINE mov_edi, BF
+DEFINE mov_esi, BE
+DEFINE mov_eax,[fs:DWORD] 64A1
+DEFINE mov_eax,[eax+BYTE] 8B40
+DEFINE mov_esi,[eax+BYTE] 8B70
+DEFINE mov_[DWORD],eax A3
+DEFINE mov_[ebx],edi 893B
+DEFINE mov_[edi],al 8807
+DEFINE push_byte 6A
+DEFINE push_ecx 51
+DEFINE add_esi, 81C6
+DEFINE mov_al,[esi] 8A06
+DEFINE sal_ebx, C1E3
+DEFINE test_al,al 84C0
+
+### For lib/windows/gettimeofday.c: reading and writing through esi, and the
+### two divides that turn a 64-bit count of 100-nanosecond units into seconds.
+DEFINE div_ecx F7F1
+DEFINE mov_eax,[esi] 8B06
+DEFINE mov_edx,[esi+BYTE] 8B56
+DEFINE mov_[esi],eax 8906
+DEFINE mov_[esi+BYTE],eax 8946
+DEFINE sbb_edx, 81DA
+
+
+:_start
+	call %resolve_all                           ; Find ntdll and resolve what we need from it
+
+	mov_ebp, &PE_end                            ; ARGV, the array of pointers
+	mov_ebx,ebp                                 ; Cursor into that array
+	mov_edi, &PE_end
+	add_edi, %1024                              ; STRINGS, after 256 pointer slots
+	mov_ecx, %0                                 ; ARGC = 0
+
+	mov_eax,[fs:DWORD] %0x30                    ; TEB->PEB
+	mov_eax,[eax+BYTE] !16                      ; PEB->ProcessParameters
+	mov_esi,[eax+BYTE] !68                      ; ->CommandLine.Buffer, what next_token walks
+
+:_start_arg
+	call %next_token                            ; The next argument, in UTF-16, or NULL
+	test_eax,eax                                ; Check for the end of the command line
+	je %_start_args_done                        ; Then we have them all
+
+	mov_[ebx],edi                               ; argv[argc] = where its narrow copy will go
+	add_ebx, %4                                 ; Advance the array cursor
+	add_ecx, %1                                 ; ARGC = ARGC + 1
+	mov_edx,eax                                 ; The UTF-16 source
+
+:_start_narrow
+	mov_al,[edx]                                ; Low byte of the UTF-16 unit
+	mov_[edi],al                                ; Which for ASCII is the whole character
+	add_edi, %1
+	add_edx, %2                                 ; UTF-16 advances two bytes at a time
+	test_al,al                                  ; Check for the NUL
+	jne %_start_narrow                          ; Which is copied and then ends the loop
+	jmp %_start_arg                             ; On to the next argument
+
+:_start_args_done
+	mov_eax, %0
+	mov_[ebx],eax                               ; argv[argc] = NULL, which main tests for
+
+	;; The environment, which Mes reads for real things: MES_ARENA sizes the
+	;; collector, GUILE_LOAD_PATH and MES_PREFIX find the modules.  Windows
+	;; keeps it in the process parameters as one block of UTF-16, each entry
+	;; ended by a zero and a second zero after the last, so this is the same
+	;; narrowing loop as above with a different way of knowing when to stop.
+	;;
+	;; ECX still holds argc and EBP still holds argv; nothing below writes
+	;; either.
+	mov_eax,[fs:DWORD] %0x30                    ; TEB->PEB
+	mov_eax,[eax+BYTE] !16                      ; PEB->ProcessParameters
+	mov_esi,[eax+BYTE] !72                      ; ->Environment, at 0x48
+
+	mov_ebx, &PE_end
+	add_ebx, %0x10000                           ; ENVP, the array of pointers
+	mov_edi, &PE_end
+	add_edi, %0x11000                           ; and the strings, after 1024 slots
+
+:_start_env_entry
+	mov_al,[esi]                                ; The first byte of the next entry
+	test_al,al
+	je %_start_env_done                         ; A zero where an entry starts ends the block
+
+	mov_[ebx],edi                               ; envp[n] = where its narrow copy goes
+	add_ebx, %4
+
+:_start_env_narrow
+	mov_al,[esi]
+	mov_[edi],al
+	add_edi, %1
+	add_esi, %2                                 ; UTF-16 advances two bytes at a time
+	test_al,al                                  ; Check for the NUL
+	jne %_start_env_narrow                      ; Which is copied and then ends the entry
+	jmp %_start_env_entry                       ; On to the next one
+
+:_start_env_done
+	mov_eax, %0
+	mov_[ebx],eax                               ; envp[n] = NULL, which getenv stops at
+
+	;; M2-Planet reads a function's arguments below the frame pointer: the
+	;; first at ebp-4, the second at ebp-8, the third at ebp-12.  So these
+	;; three, pushed in this order, are what __init_io and then main read as
+	;; argc, argv and envp.  Both are called on the same three, exactly as
+	;; lib/linux/x86-mes-m2/crt1.M1 does it.
+	;;
+	mov_ebx, &PE_end
+	add_ebx, %0x10000                           ; envp, the array just built
+
+	push_ecx                                    ; argc
+	push_ebp                                    ; argv
+	push_ebx                                    ; envp
+	mov_ebp,esp
+	add_ebp, %12                                ; ebp is 4 above the argc pushed first
+
+	call %FUNCTION___init_io                    ; __stdin, __stdout, __stderr, environ
+	call %FUNCTION_main
+
+	push_eax                                    ; ExitStatus = whatever main returned
+	push_byte !-1                               ; ProcessHandle = NtCurrentProcess pseudo-handle
+	call_[DWORD] &fn_exit                       ; Does not return
+	hlt

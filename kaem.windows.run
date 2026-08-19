@@ -1,0 +1,194 @@
+#! /bin/sh
+# Copyright © 2019,2020,2022 Jan (janneke) Nieuwenhuizen <janneke@gnu.org>
+# Copyright © 2023 Andrius Štikonas <andrius@stikonas.eu>
+#
+# This file is part of GNU Mes.
+#
+# GNU Mes is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 3 of the License, or (at
+# your option) any later version.
+#
+# GNU Mes is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with GNU Mes.  If not, see <http://www.gnu.org/licenses/>.
+
+# Usage:
+# kaem --verbose --strict
+#
+# The Windows half of kaem.run: the same bootstrap, ending in a PE32 rather
+# than an ELF.  What differs, and why:
+#
+#   No --debug and no blood-elf.  Those two and the debug ELF header are one
+#   choice made in three places: --debug ends M2-Planet's output with
+#   :ELF_data instead of :ELF_end, blood-elf supplies the missing :ELF_end
+#   along with a symbol table for objdump and gdb, and the debug header refers
+#   to the :ELF_section_headers only blood-elf defines.  Drop all three and
+#   M2-Planet writes :ELF_end itself.  Nothing functional is lost: built both
+#   ways on GNU Linux, the two binaries agree character for character and pass
+#   the same tests, and the blood-elf one is 100KB larger.
+#
+#   lib/windows/ rather than lib/linux/.  Windows has no syscall a program may
+#   make directly, so there is no _sys_call for those files to be thin
+#   wrappers over.  Each of them calls into ntdll instead; see
+#   lib/windows/x86-mes-m2/ntdll.c for how, and for the two rules that come
+#   with it.
+#
+#   lib/m2/x86/PE32-i386.hex2 and lib/m2/x86/ntdll-i386.hex2 rather than
+#   lib/m2/x86/ELF-x86.hex2.  The first is the PE header; the second finds
+#   ntdll through the PEB before main runs and resolves what the program needs
+#   out of its export table by name, so the image imports nothing at all.
+#   Both are vendored from stage0-pe32, the way ELF-x86.hex2 is vendored from
+#   M2-Planet.
+#
+#   --base-address 0x400000 rather than 0x1000000, because that is the
+#   ImageBase the PE header declares.
+
+cc_cpu=${cc_cpu:-i386}
+mes_cpu=${mes_cpu:-x86}
+stage0_cpu=${stage0_cpu:-x86}
+
+mkdir -p m2
+
+M2-Planet                                               \
+    --architecture ${stage0_cpu}                        \
+    -D __${cc_cpu}__=1                                  \
+    -D __windows__=1                                    \
+    -f ${srcdest}include/mes/config.h                  \
+    -f ${srcdest}include/mes/lib-mini.h                \
+    -f ${srcdest}include/mes/lib.h                     \
+    -f ${srcdest}include/windows/${mes_cpu}-mes-m2/ntdll.h \
+    -f ${srcdest}lib/windows/${mes_cpu}-mes-m2/crt1.c  \
+    -f ${srcdest}lib/windows/${mes_cpu}-mes-m2/iosb.c  \
+    -f ${srcdest}lib/mes/__init_io.c                   \
+    -f ${srcdest}lib/windows/${mes_cpu}-mes-m2/_exit.c \
+    -f ${srcdest}lib/windows/${mes_cpu}-mes-m2/_write.c \
+    -f ${srcdest}lib/mes/globals.c                     \
+    -f ${srcdest}lib/m2/cast.c                         \
+    -f ${srcdest}lib/stdlib/exit.c                     \
+    -f ${srcdest}lib/mes/write.c                       \
+    -f ${srcdest}lib/windows/${mes_cpu}-mes-m2/errno.c \
+    -f ${srcdest}lib/stub/__raise.c                    \
+    -f ${srcdest}lib/windows/brk.c                     \
+    -f ${srcdest}lib/linux/malloc.c                    \
+    -f ${srcdest}lib/windows/${mes_cpu}-mes-m2/ntdll.c \
+    -f ${srcdest}lib/string/memset.c                   \
+    -f ${srcdest}lib/windows/read.c                    \
+    -f ${srcdest}lib/mes/fdgetc.c                      \
+    -f ${srcdest}lib/stdio/getchar.c                   \
+    -f ${srcdest}lib/stdio/putchar.c                   \
+    -f ${srcdest}lib/stub/__buffered_read.c            \
+    -f ${srcdest}include/errno.h                       \
+    -f ${srcdest}include/fcntl.h                       \
+    -f ${srcdest}lib/windows/_open3.c                  \
+    -f ${srcdest}lib/windows/open.c                    \
+    -f ${srcdest}lib/mes/mes_open.c                    \
+    -f ${srcdest}lib/string/strlen.c                   \
+    -f ${srcdest}lib/mes/eputs.c                       \
+    -f ${srcdest}lib/mes/fdputc.c                      \
+    -f ${srcdest}lib/mes/eputc.c                       \
+                                                        \
+    -f ${srcdest}include/time.h                        \
+    -f ${srcdest}include/sys/time.h                    \
+    -f ${srcdest}include/m2/types.h                    \
+    -f ${srcdest}include/sys/types.h                   \
+    -f ${srcdest}include/sys/utsname.h                 \
+    -f ${srcdest}include/mes/mes.h                     \
+    -f ${srcdest}include/mes/builtins.h                \
+    -f ${srcdest}include/mes/constants.h               \
+    -f ${srcdest}include/mes/symbols.h                 \
+                                                        \
+    -f ${srcdest}lib/mes/__assert_fail.c               \
+    -f ${srcdest}lib/mes/assert_msg.c                  \
+                                                        \
+    -f ${srcdest}lib/mes/fdputc.c                      \
+    -f ${srcdest}lib/string/strncmp.c                  \
+    -f ${srcdest}lib/posix/getenv.c                    \
+    -f ${srcdest}lib/mes/fdputs.c                      \
+    -f ${srcdest}lib/mes/ntoab.c                       \
+    -f ${srcdest}lib/ctype/isdigit.c                   \
+    -f ${srcdest}lib/ctype/isxdigit.c                  \
+    -f ${srcdest}lib/ctype/isspace.c                   \
+    -f ${srcdest}lib/ctype/isnumber.c                  \
+    -f ${srcdest}lib/mes/abtol.c                       \
+    -f ${srcdest}lib/stdlib/atoi.c                     \
+    -f ${srcdest}lib/string/memcpy.c                   \
+    -f ${srcdest}lib/stdlib/free.c                     \
+    -f ${srcdest}lib/stdlib/realloc.c                  \
+    -f ${srcdest}lib/string/strcpy.c                   \
+    -f ${srcdest}lib/mes/itoa.c                        \
+    -f ${srcdest}lib/mes/ltoa.c                        \
+    -f ${srcdest}lib/mes/fdungetc.c                    \
+    -f ${srcdest}lib/posix/setenv.c                    \
+    -f ${srcdest}lib/windows/access.c                  \
+    -f ${srcdest}include/linux/m2/kernel-stat.h        \
+    -f ${srcdest}include/sys/stat.h                    \
+    -f ${srcdest}lib/windows/chmod.c                   \
+    -f ${srcdest}lib/windows/ioctl3.c                  \
+    -f ${srcdest}include/sys/ioctl.h                   \
+    -f ${srcdest}lib/m2/isatty.c                       \
+    -f ${srcdest}include/signal.h                      \
+    -f ${srcdest}lib/windows/fork.c                    \
+    -f ${srcdest}include/sys/resource.h                \
+    -f ${srcdest}lib/windows/waitpid.c                 \
+    -f ${srcdest}lib/windows/wait4.c                   \
+    -f ${srcdest}lib/windows/execve.c                  \
+    -f ${srcdest}lib/m2/execv.c                        \
+    -f ${srcdest}lib/windows/gettimeofday.c            \
+    -f ${srcdest}lib/windows/clock_gettime.c           \
+    -f ${srcdest}lib/windows/time.c                    \
+    -f ${srcdest}lib/windows/_getcwd.c                 \
+    -f ${srcdest}include/limits.h                      \
+    -f ${srcdest}lib/m2/getcwd.c                       \
+    -f ${srcdest}lib/windows/dup.c                     \
+    -f ${srcdest}lib/windows/dup2.c                    \
+    -f ${srcdest}lib/string/strcmp.c                   \
+    -f ${srcdest}lib/string/memcmp.c                   \
+    -f ${srcdest}lib/windows/uname.c                   \
+    -f ${srcdest}lib/windows/unlink.c                  \
+    -f ${srcdest}src/builtins.c                        \
+    -f ${srcdest}src/core.c                            \
+    -f ${srcdest}src/display.c                         \
+    -f ${srcdest}src/eval-apply.c                      \
+    -f ${srcdest}src/gc.c                              \
+    -f ${srcdest}src/hash.c                            \
+    -f ${srcdest}src/lib.c                             \
+    -f ${srcdest}src/m2.c                              \
+    -f ${srcdest}src/math.c                            \
+    -f ${srcdest}src/mes.c                             \
+    -f ${srcdest}src/module.c                          \
+    -f ${srcdest}src/posix.c                           \
+    -f ${srcdest}src/reader.c                          \
+    -f ${srcdest}src/stack.c                           \
+    -f ${srcdest}src/string.c                          \
+    -f ${srcdest}src/struct.c                          \
+    -f ${srcdest}src/symbol.c                          \
+    -f ${srcdest}src/variable.c                        \
+    -f ${srcdest}src/vector.c                          \
+    -o m2/mes.M1
+
+M1                                                      \
+    --architecture ${stage0_cpu}                        \
+    --little-endian                                     \
+    -f ${srcdest}lib/m2/${mes_cpu}/${mes_cpu}_defs.M1  \
+    -f ${srcdest}lib/${mes_cpu}-mes/${mes_cpu}.M1      \
+    -f ${srcdest}lib/windows/${mes_cpu}-mes-m2/crt1.M1 \
+    -f m2/mes.M1                                       \
+    -f ${srcdest}lib/windows/${mes_cpu}-mes-m2/pe-end.M1 \
+    -o m2/mes.hex2
+
+mkdir -p bin
+hex2                                                    \
+    --architecture ${stage0_cpu}                        \
+    --little-endian                                     \
+    --base-address 0x400000                             \
+    -f ${srcdest}lib/m2/${mes_cpu}/PE32-i386.hex2      \
+    -f ${srcdest}lib/m2/${mes_cpu}/ntdll-i386.hex2     \
+    -f m2/mes.hex2                                     \
+    -o bin/mes-m2.exe
+
+echo Built bin/mes-m2.exe
