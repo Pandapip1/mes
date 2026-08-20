@@ -22,7 +22,7 @@
 
 /* Which ntdll routine lib/m2/x86/ntdll-i386.hex2 resolved into which slot.
  * The numbering is decided there and nowhere else, so this half is copied
- * from stage0-pe32 375134c (x86/M2libc-windows/ntdll-slots.h), which that
+ * from stage0-pe32 e888cb2 (x86/M2libc-windows/ntdll-slots.h), which that
  * project generates from the same list it generates the .hex2 from.  If the
  * .hex2 beside it is updated, this must be too.
  */
@@ -49,6 +49,7 @@
 #define NT_CREATEPROC  20  /* RtlCreateUserProcess: __spawn */
 #define NT_RESUME      21  /* NtResumeThread: __spawn: a new process starts suspended */
 #define NT_ALLOC       22  /* NtAllocateVirtualMemory: a real brk, for a program too big to live inside the image */
+#define NT_CLONE       23  /* RtlCloneUserProcess: fork; absent on wine, where the slot stays 0 */
 
 int *__iosb ();
 void *__ntdll (int slot);

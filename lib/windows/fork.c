@@ -21,16 +21,24 @@
 
 /* Stands in for lib/linux/fork.c, and fails.
  *
- * fork's whole meaning is that the child comes back from the same call with
- * the same memory and carries on from the same line, and Windows has no call
- * that does that.  ntdll exports RtlCloneUserProcess, which is the nearest
- * thing; it clones an address space the Win32 side of the system knows
- * nothing about, and wine does not export it at all, so it could not be
- * tested here even if it were the right answer.
+ * Windows does have a fork primitive: NtCreateProcessEx given a parent and no
+ * section handle clones the parent's address space instead of mapping an
+ * image -- ReactOS's own PspCreateProcess reaches that branch and says "This
+ * is a clone!" before declining to implement it -- and RtlCloneUserProcess
+ * wraps it and is meant to return in both processes.
  *
- * What Windows can do instead is start a program directly, which is
- * lib/windows/execve.c, and wait for it, which is lib/windows/waitpid.c.  A
- * caller wanting a child says
+ * It does not work.  On Windows 11 22621 the parent gets STATUS_SUCCESS and a
+ * real cloned process, and the child's thread, which is not suspended, sits in
+ * Wait and never reaches the first statement after the call.  Every flag
+ * combination is the same, and the identical call from 64-bit and 32-bit
+ * PowerShell behaves the same way, so it is neither this port nor WOW64.  The
+ * measurements are written up beside the code in stage0-pe32's
+ * x86/M2libc-windows/process.c, where __clone_process keeps the call.
+ *
+ * Failing here is deliberate: a fork whose parent gets a handle and whose
+ * child never runs would hang the first caller to wait for it.  What Windows
+ * can do is start a program directly, which is lib/windows/execve.c, and wait
+ * for it, which is lib/windows/waitpid.c.  A caller wanting a child says
  *
  *   pid = __spawn (file, argv, envp); waitpid (pid, &status, 0);
  *
