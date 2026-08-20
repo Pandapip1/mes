@@ -1,4 +1,4 @@
-### Vendored from stage0-pe32 e888cb2, x86/ntdll-i386.hex2, unmodified.
+### Vendored from stage0-pe32 6393d08, x86/ntdll-i386.hex2, unmodified.
 ### Its own header follows.  Regenerate there, never edit here.
 ###
 # SPDX-FileCopyrightText: (C) 2026 Gavin John
