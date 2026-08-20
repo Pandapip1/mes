@@ -22,7 +22,7 @@
 
 /* Which ntdll routine lib/m2/x86/ntdll-i386.hex2 resolved into which slot.
  * The numbering is decided there and nowhere else, so this half is copied
- * from stage0-pe32 6393d08 (x86/M2libc-windows/ntdll-slots.h), which that
+ * from stage0-pe32 fcc842d (x86/M2libc-windows/ntdll-slots.h), which that
  * project generates from the same list it generates the .hex2 from.  If the
  * .hex2 beside it is updated, this must be too.
  */
@@ -50,6 +50,13 @@
 #define NT_RESUME      21  /* NtResumeThread: __spawn: a new process starts suspended */
 #define NT_ALLOC       22  /* NtAllocateVirtualMemory: a real brk, for a program too big to live inside the image */
 #define NT_CLONE       23  /* RtlCloneUserProcess: fork; absent on wine, where the slot stays 0 */
+#define NT_GETCONTEXT  24  /* NtGetContextThread: fork: the context a suspended child would start with */
+#define NT_SETCONTEXT  25  /* NtSetContextThread: fork: point that child at where its parent was instead */
+#define NT_WRITEVM     26  /* NtWriteVirtualMemory: fork: copy this process's memory into that child */
+#define NT_READVM      27  /* NtReadVirtualMemory: fork: watch for the child to say it has parked */
+#define NT_SUSPEND     28  /* NtSuspendThread: fork: stop that child before overwriting it */
+#define NT_WOW64QINFO  29  /* NtWow64QueryInformationProcess64: wow64 clone fix: this process's own 64-bit PEB address */
+#define NT_WOW64READVM 30  /* NtWow64ReadVirtualMemory64: wow64 clone fix: read the 64-bit ntdll/wow64cpu images to resolve BTCpuSimulate */
 
 int *__iosb ();
 void *__ntdll (int slot);
