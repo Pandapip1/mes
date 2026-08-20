@@ -93,7 +93,17 @@ __walloc16 (int size)
  * PAGE_EXECUTE_READWRITE.  Layout (byte offsets): 0x000 a 32-bit entry stub;
  * 0x040 a data area of six 8-byte slots (Target, Arg1..Arg4, Result); 0x0C0
  * the 64-bit payload; 0x120 a 32-bit return stub.  Only the 89 non-zero bytes
- * out of 289 are written here; the rest of the fresh page is already zero. */
+ * out of 289 are written here; the rest of the fresh page is already zero.
+ *
+ * Cached in a global, the same way __wow64_selfhandle in wow64resolve.c
+ * caches its own handle: the bytes below never change from one call to the
+ * next, so a second call has nothing to do differently.  Before this, every
+ * fork () allocated a fresh PAGE_EXECUTE_READWRITE page here and never freed
+ * or reused it -- 4KB of committed, executable memory, leaked, once per
+ * fork ().  stage0-pe32 5d32496 found and fixed the identical leak in its
+ * own __gate_init, the function this was ported from; same fix here. */
+int __gate_have;
+int __gate_cache;
 int
 __gate_init ()
 {
@@ -102,6 +112,9 @@ __gate_init ()
   int *base;
   int *size;
   int rc;
+
+  if (__gate_have != 0)
+    return __gate_cache;
 
   base = malloc (4);
   base[0] = 0;
@@ -141,6 +154,8 @@ __gate_init ()
   g[0x10a] = 35; g[0x10b] = 80; g[0x10c] = 72; g[0x10d] = 203;
   g[0x120] = 195;
 
+  __gate_cache = base[0];
+  __gate_have = 1;
   return base[0];
 }
 

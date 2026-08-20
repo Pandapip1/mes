@@ -67,6 +67,35 @@ __wow64_selfhandle ()
   return out[0];
 }
 
+/* __wow64_rd64_got / __wow64_rd64_v: the two buffers __wow64_rd64 and its
+ * two callers used to allocate fresh on every call.  Each is written and
+ * read back before the function that owns it returns, and never held onto
+ * after -- nothing here is reentrant or recursive, this whole fix runs
+ * straight through on one thread -- so one of each, allocated the first
+ * time and reused after, is exactly as correct as a fresh allocation every
+ * time.  __wow64_rd64_dword and __wow64_rd64_word are what the module walk
+ * and the export walk in this file call for nearly every dword or word read
+ * out of a 64-bit image -- thousands of times in one
+ * __clone_process_wow64fix () call -- and every one of those was a fresh
+ * malloc, never freed.  stage0-pe32 5d32496 measured the identical pattern
+ * (there, calloc's own smallest bucket rounding every one of those up to
+ * 256 bytes) walking its fixed-size heap section off the end in under 40
+ * fork () calls; this port's brk () grows instead of stopping, so the
+ * failure mode here is slower rather than absent, not a reason to leave the
+ * waste in. */
+int __wow64_rd64_have;
+int *__wow64_rd64_got;
+int *__wow64_rd64_v;
+void
+__wow64_rd64_init ()
+{
+  if (__wow64_rd64_have != 0)
+    return;
+  __wow64_rd64_got = __walloc16 (8);
+  __wow64_rd64_v = __walloc16 (4);
+  __wow64_rd64_have = 1;
+}
+
 /* Read len bytes (at most 8, everything below asks for) from the 64-bit
  * address (lo, hi) of this same process's own 64-bit view, into buf, which
  * the caller owns.  Returns the NTSTATUS from NtWow64ReadVirtualMemory64; a
@@ -79,7 +108,8 @@ __wow64_rd64 (int lo, int hi, int *buf, int len)
   int self;
 
   self = __wow64_selfhandle ();
-  got = __walloc16 (8);
+  __wow64_rd64_init ();
+  got = __wow64_rd64_got;
   got[0] = 0;
   got[1] = 0;
   NtWow64ReadVirtualMemory64 = __ntdll (NT_WOW64READVM);
@@ -93,7 +123,8 @@ __wow64_rd64_dword (int lo, int hi)
 {
   int *v;
 
-  v = __walloc16 (4);
+  __wow64_rd64_init ();
+  v = __wow64_rd64_v;
   v[0] = 0;
   __wow64_rd64 (lo, hi, v, 4);
   return v[0];
@@ -104,7 +135,8 @@ __wow64_rd64_word (int lo, int hi)
 {
   int *v;
 
-  v = __walloc16 (4);
+  __wow64_rd64_init ();
+  v = __wow64_rd64_v;
   v[0] = 0;
   __wow64_rd64 (lo, hi, v, 2);
   return 65535 & v[0];
