@@ -28,8 +28,8 @@
  * this process stays alive, doing nothing but waiting, while the child runs.
  *
  * RtlCreateProcessParameters builds the block the child's PEB will point at,
- * with this process's three standard handles copied into it so the child
- * reads and writes wherever this one does.  RtlCreateUserProcess makes the
+ * with this process's three standard handles duplicated inheritable into it so
+ * the child reads and writes wherever this one does.  RtlCreateUserProcess makes the
  * process with its first thread suspended, which is why NtResumeThread has to
  * be called before anything happens.
  *
@@ -223,6 +223,31 @@ __envblock (char **env)
   return w;
 }
 
+/* The same handle again, marked so that a child may inherit it.
+ *
+ * A handle is only passed to a child if it was created inheritable, and the
+ * three this process was handed need not have been -- on Windows the parent
+ * has to say so, and duplicating with OBJ_INHERIT is how.  If the duplicate
+ * fails the original is used, which is no worse than not trying. */
+int
+__inheritable (int handle)
+{
+  int (*NtDuplicateObject) (int, int, int, int, int, int, int);
+  int *out;
+
+  if (handle == 0)
+    return 0;
+
+  out = malloc (4);
+  out[0] = 0;
+  NtDuplicateObject = __ntdll (NT_DUP);
+  /* forwards: NtDuplicateObject (-1, handle, -1, out, 0, OBJ_INHERIT,
+   *                              DUPLICATE_SAME_ACCESS) */
+  if (NtDuplicateObject (2, 2, 0, out, -1, handle, -1) != 0)
+    return handle;
+  return out[0];
+}
+
 /* Start a program.  What comes back is a handle to it, which waitpid takes,
  * or -1. */
 int
@@ -244,6 +269,7 @@ __spawn (char const *file_name, char **argv, char **env)
   int *info;
   int *slot;
   int thread;
+  int h;
   int i;
   int rc;
 
@@ -268,21 +294,40 @@ __spawn (char const *file_name, char **argv, char **env)
   params = out[0];
 
   /* hStdInput, hStdOutput and hStdError are at 0x18, 0x1c and 0x20 into the
-   * block: the same three words __stdslot points into here.
-   *
-   * This works under wine and does not work on Windows, and the difference is
-   * not understood -- see the head of stage0-pe32's x86/M2libc-windows/
-   * process.c, where the same code is and where what was measured is written
-   * down.  A child still runs, still reads and writes files it opens itself,
-   * and still reports its exit status; only handles it was given rather than
-   * opened are affected.  Nothing in Mes spawns anything, so nothing here
-   * depends on it yet. */
+   * block: the same three words __stdslot points into here.  Each is
+   * duplicated inheritable first, because writing a number into the child's
+   * parameters says which handle it should use but does not make the child
+   * get it: only a handle marked inheritable is copied across, and the three
+   * this process was handed need not be. */
   slot = __stdslot (0);
-  params[6] = slot[0];
+  h = slot[0];
+  params[6] = __inheritable (h);
   slot = __stdslot (1);
-  params[7] = slot[0];
+  h = slot[0];
+  params[7] = __inheritable (h);
   slot = __stdslot (2);
-  params[8] = slot[0];
+  h = slot[0];
+  params[8] = __inheritable (h);
+
+  /* STARTF_USESTDHANDLES, in WindowFlags at 0x68 into the block, and without
+   * it the three words just written are thrown away before the child's first
+   * instruction: a child's startup copies the parameter block onto its heap
+   * and fills those fields in with console handles of its own, so writes to
+   * what replaced them are accepted and discarded while NtWriteFile still
+   * answers STATUS_SUCCESS with a byte count.  ReactOS's SetUpHandles, in
+   * dll/win32/kernel32/client/console/init.c, is the same decision written
+   * down: it overwrites them only if ((dwStartupFlags & STARTF_USESTDHANDLES)
+   * == 0).  A Win32 caller sets the flag by filling in STARTUPINFO's
+   * hStdInput, hStdOutput and hStdError; nothing in RtlCreateUserProcess's
+   * arguments reaches it, so it goes into the block directly.
+   *
+   * wine never needed it, because it does this in kernelbase rather than in
+   * ntdll -- init_console_std_handles, from dlls/kernelbase/console.c -- and a
+   * program importing ntdll and nothing else never loads kernelbase, so there
+   * is nothing there to overwrite the fields.  Measured on Windows 11 in
+   * stage0-pe32, whose x86/M2libc-windows/process.c carries the long version
+   * of this note. */
+  params[26] = 256;
 
   /* RTL_USER_PROCESS_INFORMATION: Length, Process, Thread, a CLIENT_ID and a
    * SECTION_IMAGE_INFORMATION, 68 bytes altogether.  Only the first three
