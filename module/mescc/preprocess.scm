@@ -66,10 +66,10 @@
                           (@@ (nyacc lang c99 parser) c99-len-v))
 
 
-(define* (c99-input->full-ast #:key (prefix "") (defines '()) (includes '()) (arch "") verbose?)
+(define* (c99-input->full-ast #:key (prefix "") (defines '()) (includes '()) (arch "")
+                             (kernel "linux") verbose?)
   (let* ((sys-include (if (equal? prefix "") "include"
                           (string-append prefix "/include")))
-         (kernel "linux")
          (kernel-include (string-append sys-include "/" kernel "/" arch))
          (includes (append
                     includes
@@ -81,7 +81,7 @@
                                               search-path-split) '())))))
          (defines `(
                     "NULL=0"
-                    "__linux__=1"
+                    ,(string-append "__" kernel "__=1")
                     "_POSIX_SOURCE=0"
                     "SYSTEM_LIBC=0"
                     "__STDC__=1"
@@ -96,14 +96,16 @@
      #:cpp-defs defines
      #:mode 'code)))
 
-(define* (c99-input->ast #:key (prefix "") (defines '()) (includes '()) (arch "") verbose?)
+(define* (c99-input->ast #:key (prefix "") (defines '()) (includes '()) (arch "")
+                        (kernel "linux") verbose?)
   (when verbose?
     (format (current-error-port) "parsing: input\n"))
   ((compose ast-strip-inline
             ast-strip-attributes
             ast-strip-const
             ast-strip-comment)
-   (c99-input->full-ast #:prefix prefix #:defines defines #:includes includes #:arch arch #:verbose? verbose?)))
+   (c99-input->full-ast #:prefix prefix #:defines defines #:includes includes #:arch arch
+                        #:kernel kernel #:verbose? verbose?)))
 
 (define (ast-strip-comment o)
   (pmatch o

@@ -62,14 +62,16 @@
          (prefix (option-ref options 'prefix ""))
          (machine (option-ref options 'machine "32"))
          (arch (arch-get options))
+         (kernel (option-ref options 'kernel "linux"))
          (defines (append (arch-get-defines options) defines))
          (verbose? (count-opt options 'verbose)))
     (with-output-to-file* ast-file-name
-      (lambda _ (for-each (cut c->ast prefix defines includes arch pretty-print/write verbose? <>) files)))))
+      (lambda _ (for-each (cut c->ast prefix defines includes arch kernel pretty-print/write verbose? <>) files)))))
 
-(define (c->ast prefix defines includes arch write verbose? file-name)
+(define (c->ast prefix defines includes arch kernel write verbose? file-name)
   (with-input-from-file file-name
-    (cut write (c99-input->ast #:prefix prefix #:defines defines #:includes includes #:arch arch #:verbose? verbose?))))
+    (cut write (c99-input->ast #:prefix prefix #:defines defines #:includes includes #:arch arch
+                               #:kernel kernel #:verbose? verbose?))))
 
 (define (mescc:compile options)
   (let* ((files (option-ref options '() '("a.c")))
@@ -102,9 +104,11 @@
          (prefix (option-ref options 'prefix ""))
          (defines (append (arch-get-defines options) defines))
          (arch (arch-get options))
+         (kernel (option-ref options 'kernel "linux"))
          (verbose? (count-opt options 'verbose)))
     (with-input-from-file file-name
-      (cut c99-input->info (arch-get-info options) #:prefix prefix #:defines defines #:includes includes #:arch arch #:verbose? verbose?))))
+      (cut c99-input->info (arch-get-info options) #:prefix prefix #:defines defines #:includes includes
+           #:arch arch #:kernel kernel #:verbose? verbose?))))
 
 (define (E->info options file-name)
   (let ((ast (with-input-from-file file-name read))

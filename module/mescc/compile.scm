@@ -54,8 +54,10 @@
   (if %reduced-register-count %reduced-register-count
    (length (append (.registers info) (.allocated info)))))
 
-(define* (c99-input->info info #:key (prefix "") (defines '()) (includes '()) (arch "") verbose?)
-  (let ((ast (c99-input->ast #:prefix prefix #:defines defines #:includes includes #:arch arch #:verbose? verbose?)))
+(define* (c99-input->info info #:key (prefix "") (defines '()) (includes '()) (arch "")
+                          (kernel "linux") verbose?)
+  (let ((ast (c99-input->ast #:prefix prefix #:defines defines #:includes includes #:arch arch
+                             #:kernel kernel #:verbose? verbose?)))
     (c99-ast->info info ast #:verbose? verbose?)))
 
 (define* (c99-ast->info info o #:key verbose?)
