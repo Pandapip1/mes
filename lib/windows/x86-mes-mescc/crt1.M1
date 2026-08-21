@@ -17,29 +17,29 @@
 ### You should have received a copy of the GNU General Public License
 ### along with GNU Mes.  If not, see <http://www.gnu.org/licenses/>.
 
-### The Windows _start for M2-Planet-compiled programs.
+### The Windows _start for MesCC-compiled programs.
 ###
 ### Everything that is about Windows rather than about the compiler is in
 ### argv.M1 beside this file; what is left here is the calling convention.
 ###
-### M2-Planet reads a function's arguments below the frame pointer: the first
-### at ebp-4, the second at ebp-8, the third at ebp-12.  So the three pushed
-### below, in that order, are what __init_io and then main read as argc, argv
-### and envp -- exactly as lib/linux/x86-mes-m2/crt1.M1 does it, which is why
-### ebp ends up 4 above the argc pushed first.
+### MesCC is cdecl: the caller pushes the arguments right to left and the
+### callee opens with push %ebp / mov %esp,%ebp, so main finds argc at ebp+8.
+### That is what these three pushes leave for it, and there is no frame to set
+### up here -- main sets up its own.  __init_io takes no arguments and is
+### called with them in place; it neither reads nor removes them, so main gets
+### the same stack.  lib/linux/x86-mes-mescc/crt1.c does the same thing in C,
+### which it can, because on Linux the values are on the stack already.
 
 :_start
 	call %resolve_all                           ; Find ntdll and resolve what we need from it
 	call %__windows_argv                        ; ECX = argc, EBP = argv, EBX = envp
 
-	push_ecx                                    ; argc
+	push_ebx                                    ; envp, the third argument
 	push_ebp                                    ; argv
-	push_ebx                                    ; envp
-	mov_ebp,esp
-	add_ebp, %12                                ; ebp is 4 above the argc pushed first
+	push_ecx                                    ; argc, the first, pushed last
 
-	call %FUNCTION___init_io                    ; __stdin, __stdout, __stderr, environ
-	call %FUNCTION_main
+	call %__init_io                             ; __stdin, __stdout, __stderr, environ
+	call %main
 
 	push_eax                                    ; ExitStatus = whatever main returned
 	push_byte !-1                               ; ProcessHandle = NtCurrentProcess pseudo-handle

@@ -1,0 +1,139 @@
+### GNU Mes --- Maxwell Equations of Software
+### Copyright © 2017,2018,2019,2023 Jan (janneke) Nieuwenhuizen <janneke@gnu.org>
+### Copyright © 2026 Gavin John
+###
+### This file is part of GNU Mes.
+###
+### GNU Mes is free software; you can redistribute it and/or modify it
+### under the terms of the GNU General Public License as published by
+### the Free Software Foundation; either version 3 of the License, or (at
+### your option) any later version.
+###
+### GNU Mes is distributed in the hope that it will be useful, but
+### WITHOUT ANY WARRANTY; without even the implied warranty of
+### MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+### GNU General Public License for more details.
+###
+### You should have received a copy of the GNU General Public License
+### along with GNU Mes.  If not, see <http://www.gnu.org/licenses/>.
+
+### What Windows does not hand a program.
+###
+### Linux puts argc, argv and the environment on the stack before the first
+### instruction runs, so lib/linux/*/crt1 is nine instructions of rearranging.
+### Windows puts one UTF-16 command line in the process parameters and stops
+### there, so somebody has to split it, narrow it, and lay out the two arrays
+### -- and that somebody cannot be C, because it runs before the C library has
+### a stdin.
+###
+### This is that routine, and it is the same work whichever compiler built the
+### program above it.  The two crt1.M1 files beside this one differ only in how
+### they hand the result to main, which is a question about the compiler's
+### calling convention and not about Windows; see each for its own.
+###
+###   in:  nothing but a stack to return on
+###   out: ECX = argc, EBP = argv, EBX = envp
+###
+### The mnemonics below are DEFINEd in defs.M1 beside this file, not here: a
+### DEFINE is global to an assembly and duplicating one is an error, so the
+### handful lib/windows/ needs is named in one place.
+###
+### resolve_all and next_token come from lib/m2/x86/ntdll-i386.hex2, which
+### hex2 puts in front of this the way it puts the PE header in front of both.
+### See that file for why a program here imports nothing at all.
+###
+### The memory past the end of the image is mapped, writable and already zero
+### -- lib/m2/x86/PE32-i386.hex2 gives the image a section whose VirtualSize
+### runs to the top -- and this divides the start of it up, measured from
+### :PE_end, the last label the program emits:
+###
+###   +0x00000   argv, 256 pointers
+###   +0x00400   the argument strings themselves
+###   +0x08000   one path, widened to UTF-16 for ntdll
+###   +0x10000   envp, 1024 pointers
+###   +0x11000   the environment strings themselves
+###
+### The heap is not here.  lib/windows/brk.c asks the system for it, because
+### Mes's collector wants a quarter of a gigabyte in one piece and no image
+### size answers that honestly.
+###
+### Nothing checks those bounds.  A command line of more than 256 arguments or
+### 31KB would run past its own area, and this is the layer below the one that
+### could report it.
+
+
+:__windows_argv
+	mov_ebp, &PE_end                            ; ARGV, the array of pointers
+	mov_ebx,ebp                                 ; Cursor into that array
+	mov_edi, &PE_end
+	add_edi, %1024                              ; STRINGS, after 256 pointer slots
+	mov_ecx, %0                                 ; ARGC = 0
+
+	mov_eax,[fs:DWORD] %0x30                    ; TEB->PEB
+	mov_eax,[eax+BYTE] !16                      ; PEB->ProcessParameters
+	mov_esi,[eax+BYTE] !68                      ; ->CommandLine.Buffer, what next_token walks
+
+:__windows_argv_arg
+	call %next_token                            ; The next argument, in UTF-16, or NULL
+	test_eax,eax                                ; Check for the end of the command line
+	je %__windows_argv_done                     ; Then we have them all
+
+	mov_[ebx],edi                               ; argv[argc] = where its narrow copy will go
+	add_ebx, %4                                 ; Advance the array cursor
+	add_ecx, %1                                 ; ARGC = ARGC + 1
+	mov_edx,eax                                 ; The UTF-16 source
+
+:__windows_argv_narrow
+	mov_al,[edx]                                ; Low byte of the UTF-16 unit
+	mov_[edi],al                                ; Which for ASCII is the whole character
+	add_edi, %1
+	add_edx, %2                                 ; UTF-16 advances two bytes at a time
+	test_al,al                                  ; Check for the NUL
+	jne %__windows_argv_narrow                  ; Which is copied and then ends the loop
+	jmp %__windows_argv_arg                     ; On to the next argument
+
+:__windows_argv_done
+	mov_eax, %0
+	mov_[ebx],eax                               ; argv[argc] = NULL, which main tests for
+
+	;; The environment, which Mes reads for real things: MES_ARENA sizes the
+	;; collector, GUILE_LOAD_PATH and MES_PREFIX find the modules.  Windows
+	;; keeps it in the process parameters as one block of UTF-16, each entry
+	;; ended by a zero and a second zero after the last, so this is the same
+	;; narrowing loop as above with a different way of knowing when to stop.
+	;;
+	;; ECX still holds argc and EBP still holds argv; nothing below writes
+	;; either.
+	mov_eax,[fs:DWORD] %0x30                    ; TEB->PEB
+	mov_eax,[eax+BYTE] !16                      ; PEB->ProcessParameters
+	mov_esi,[eax+BYTE] !72                      ; ->Environment, at 0x48
+
+	mov_ebx, &PE_end
+	add_ebx, %0x10000                           ; ENVP, the array of pointers
+	mov_edi, &PE_end
+	add_edi, %0x11000                           ; and the strings, after 1024 slots
+
+:__windows_argv_env_entry
+	mov_al,[esi]                                ; The first byte of the next entry
+	test_al,al
+	je %__windows_argv_env_done                 ; A zero where an entry starts ends the block
+
+	mov_[ebx],edi                               ; envp[n] = where its narrow copy goes
+	add_ebx, %4
+
+:__windows_argv_env_narrow
+	mov_al,[esi]
+	mov_[edi],al
+	add_edi, %1
+	add_esi, %2                                 ; UTF-16 advances two bytes at a time
+	test_al,al                                  ; Check for the NUL
+	jne %__windows_argv_env_narrow              ; Which is copied and then ends the entry
+	jmp %__windows_argv_env_entry               ; On to the next one
+
+:__windows_argv_env_done
+	mov_eax, %0
+	mov_[ebx],eax                               ; envp[n] = NULL, which getenv stops at
+
+	mov_ebx, &PE_end
+	add_ebx, %0x10000                           ; envp, the array just built
+	ret                                         ; ECX = argc, EBP = argv, EBX = envp

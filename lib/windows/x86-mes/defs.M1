@@ -1,0 +1,73 @@
+### GNU Mes --- Maxwell Equations of Software
+### Copyright © 2026 Gavin John
+###
+### This file is part of GNU Mes.
+###
+### GNU Mes is free software; you can redistribute it and/or modify it
+### under the terms of the GNU General Public License as published by
+### the Free Software Foundation; either version 3 of the License, or (at
+### your option) any later version.
+###
+### GNU Mes is distributed in the hope that it will be useful, but
+### WITHOUT ANY WARRANTY; without even the implied warranty of
+### MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+### GNU General Public License for more details.
+###
+### You should have received a copy of the GNU General Public License
+### along with GNU Mes.  If not, see <http://www.gnu.org/licenses/>.
+
+### Instructions the Windows startup and the asm () in lib/windows/ reach for
+### that neither lib/m2/x86/x86_defs.M1 nor lib/x86-mes/x86.M1 names.
+###
+### A DEFINE is global to one assembly and duplicating one is an error, so
+### these live in a single file rather than at each point of use, and every
+### assembly that links a Windows program is given it: both crt1.M1 files
+### beside this one need it, and so does argv.M1.
+###
+### An undefined mnemonic is not an error M1 reports: it passes the token
+### through, hex2 cannot make sense of it either, and the instruction is
+### silently dropped.  The binary comes out a few bytes short and faults
+### somewhere unrelated.  Check with stage0-pe32's check_mnemonics.py against
+### this file, x86_defs.M1 and x86.M1.
+###
+### The naming is M2-Planet's, because M2-Planet is what these were first
+### written for and an asm () string is passed through untouched.  MesCC
+### assembles each translation unit on its own, with only x86.M1, so a MesCC
+### lib/windows/ file cannot see this at all; the instructions it needs are
+### DEFINEd in x86.M1 under that file's own naming instead.
+
+### For argv.M1 and the two crt1.M1 files.
+DEFINE add_ebx, 81C3
+DEFINE add_ecx, 81C1
+DEFINE add_edi, 81C7
+DEFINE add_edx, 81C2
+DEFINE add_esi, 81C6
+DEFINE call_[DWORD] FF15
+DEFINE mov_al,[edx] 8A02
+DEFINE mov_al,[esi] 8A06
+DEFINE mov_eax,[eax+BYTE] 8B40
+DEFINE mov_ebp, BD
+DEFINE mov_ebx,ebp 89EB
+DEFINE mov_edi, BF
+DEFINE mov_esi,[eax+BYTE] 8B70
+DEFINE mov_[ebx],edi 893B
+DEFINE mov_[edi],al 8807
+DEFINE push_byte 6A
+DEFINE push_ecx 51
+DEFINE test_al,al 84C0
+
+### For lib/windows/x86-mes-m2/ntlow.c: the segment override that reads the
+### thread block, which is the one thing a Windows program can find without
+### having found anything else first.  argv.M1 reads it too.
+DEFINE mov_eax,[fs:DWORD] 64A1
+
+### For lib/windows/x86-mes-m2/gettimeofday.c: reading and writing through esi,
+### and the two divides that turn a 64-bit count of 100-nanosecond units into
+### seconds.  mov_ecx, is argv.M1's as well.
+DEFINE div_ecx F7F1
+DEFINE mov_ecx, B9
+DEFINE mov_eax,[esi] 8B06
+DEFINE mov_edx,[esi+BYTE] 8B56
+DEFINE mov_[esi],eax 8906
+DEFINE mov_[esi+BYTE],eax 8946
+DEFINE sbb_edx, 81DA

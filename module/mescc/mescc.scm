@@ -210,11 +210,12 @@
          (hex2 (or (getenv "HEX2") "hex2"))
          (base-address (option-ref options 'base-address "0x1000000"))
          (machine (arch-get-machine options))
+         (obj-format (object-format options))
          (elf-footer
           (or elf-footer
               (kernel-find
                options
-               (string-append "elf" machine "-footer-single-main.hex2"))))
+               (string-append obj-format machine "-footer-single-main.hex2"))))
          (start-files (if (or (option-ref options 'nostartfiles #f)
                               (option-ref options 'nostdlib #f)) '()
                               `("-f" ,(arch-find options "crt1.o"))))
@@ -224,7 +225,7 @@
                     "--base-address" ,base-address
                     "-f" ,(kernel-find
                            options
-                           (string-append "elf" machine "-header.hex2"))
+                           (string-append obj-format machine "-header.hex2"))
                     ,@start-files
                     ,@(append-map (cut list "-f" <>) hex2-files)
                     "-f" ,elf-footer
@@ -300,6 +301,15 @@
         (format (current-error-port) "  => ~s\n" file))
       (or file
           (error (format #f "mescc: file not found: ~s" arch-file-name))))))
+
+;; What kind of executable the linker is producing.  hex2 has no idea: it
+;; emits bytes, and the header and footer files it is given are the whole of
+;; the format.  Which pair to reach for is decided by the kernel, because that
+;; is what a Mes build already knows about itself -- there is no --target here
+;; and no configure test, only mes_kernel.
+(define (object-format options)
+  (let ((kernel (option-ref options 'kernel "linux")))
+    (if (equal? kernel "windows") "pe" "elf")))
 
 (define (kernel-find options file-name)
   (let ((kernel (option-ref options 'kernel "linux")))
