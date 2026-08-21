@@ -76,9 +76,9 @@
                     (cons* kernel-include
                            sys-include
                            (append (or (and=> (getenv "CPATH")
-                                              (cut string-split <> #\:)) '())
+                                              search-path-split) '())
                                    (or (and=> (getenv "C_INCLUDE_PATH")
-                                              (cut string-split <> #\:)) '())))))
+                                              search-path-split) '())))))
          (defines `(
                     "NULL=0"
                     "__linux__=1"

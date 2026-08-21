@@ -211,7 +211,7 @@
 
 (define %load-path
   (cons* %moduledir "module"
-         (string-split (or (getenv "GUILE_LOAD_PATH") "") #\:)))
+         (search-path-split (or (getenv "GUILE_LOAD_PATH") ""))))
 
 (define (%search-load-path file-name)
   (when (> %debug 2)

@@ -51,7 +51,9 @@
             equal2?
             keyword->string
             pmatch-car
-            pmatch-cdr))
+            pmatch-cdr
+            search-path-quote
+            search-path-split))
 
 (cond-expand
  (guile-2)
@@ -75,6 +77,23 @@
   (define (core:car f a . m) (apply f a))
   (define append2 append)
   (define equal2? equal?)
+
+  ;; A search path splits on colons, except inside a pair of double quotes:
+  ;; "C:\windows\absolute\path" is one entry, drive-letter colon and all.
+  ;; Mes defines these while booting; Guile needs its own copy.
+  (define (search-path-split path)
+    (let loop ((lst (string->list path)) (field '()) (result '()) (quoted? #f))
+      (cond ((null? lst)
+             (append result (list (list->string (reverse field)))))
+            ((eq? (car lst) #\")
+             (loop (cdr lst) field result (not quoted?)))
+            ((and (not quoted?) (eq? (car lst) #\:))
+             (loop (cdr lst) '() (append result (list (list->string (reverse field)))) #f))
+            (else
+             (loop (cdr lst) (cons (car lst) field) result quoted?)))))
+
+  (define (search-path-quote path)
+    (if (memq #\: (string->list path)) (string-append "\"" path "\"") path))
 
   (define guile:keyword? keyword?)
   (define guile:number? number?)

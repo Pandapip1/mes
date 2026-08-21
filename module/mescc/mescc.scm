@@ -287,7 +287,7 @@
                            '())
                        (list libdir)
                        (or (and=> (getenv "LIBRARY_PATH")
-                                  (cut string-split <> #\:)) '())
+                                  search-path-split) '())
                        (filter-map (multi-opt 'library-dir) options)))
          (arch-file-name (string-append arch "/" file-name))
          (arch-file-name (if kernel (string-append kernel "/" arch-file-name)

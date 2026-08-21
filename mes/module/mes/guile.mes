@@ -25,8 +25,29 @@
 
 (define-macro (cond-expand-provide . rest) #t)
 
+(define (search-path-split path)
+  ;; Split a PATH-style variable on colons, except inside a pair of double
+  ;; quotes: "C:\windows\absolute\path" is one entry, colon and all.  A
+  ;; Windows path carries a drive-letter colon that a plain split would tear
+  ;; in half, and there is nowhere else to put the separator.  The quotes
+  ;; delimit, so they never reach the returned entry.
+  (let loop ((lst (string->list path)) (field (list)) (result (list)) (quoted? #f))
+    (cond ((null? lst)
+           (append result (list (list->string (reverse field)))))
+          ((eq? (car lst) #\")
+           (loop (cdr lst) field result (not quoted?)))
+          ((and (not quoted?) (eq? (car lst) #\:))
+           (loop (cdr lst) (list) (append result (list (list->string (reverse field)))) #f))
+          (else
+           (loop (cdr lst) (cons (car lst) field) result quoted?)))))
+
+(define (search-path-quote path)
+  ;; The inverse: quote an entry that carries a colon, so that prepending it
+  ;; to a search path survives the next split.
+  (if (memq #\: (string->list path)) (string-append "\"" path "\"") path))
+
 (define-macro (include-from-path file)
-  (let loop ((path (cons* %moduledir "module" (string-split (or (getenv "GUILE_LOAD_PATH") "") #\:))))
+  (let loop ((path (cons* %moduledir "module" (search-path-split (or (getenv "GUILE_LOAD_PATH") "")))))
     (cond ((and=> (getenv "MES_DEBUG") (compose (lambda (o) (> o 2)) string->number))
            (core:display-error (string-append "include-from-path: " file " [PATH:" (string-join path ":") "]\n")))
           ((and=> (getenv "MES_DEBUG") (compose (lambda (o) (> o 1)) string->number))
@@ -60,7 +81,7 @@
 (mes-use-module (mes simple-format))
 
 (define %host-type (string-append %arch "-linux-gnu"))
-(define %load-path (or (and=> (getenv "GUILE_LOAD_PATH") (lambda (x) (string-split x #\:))) '()))
+(define %load-path (or (and=> (getenv "GUILE_LOAD_PATH") search-path-split) '()))
 
 (define (drain-input port) (read-string))
 
