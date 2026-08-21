@@ -18,6 +18,7 @@
  */
 #include <windows/ntdll.h>
 #include <mes/lib.h>
+#include <time.h>
 
 /* Stands in for lib/linux/clock_gettime.c.
  *

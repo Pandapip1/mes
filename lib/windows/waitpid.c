@@ -19,6 +19,8 @@
 #include <windows/ntcall.h>
 #include <windows/ntdll.h>
 #include <mes/lib.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 
 /* Stands in for lib/linux/waitpid.c.
  *

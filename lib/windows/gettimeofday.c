@@ -18,6 +18,7 @@
  */
 #include <windows/ntdll.h>
 #include <mes/lib.h>
+#include <sys/time.h>
 
 /* Stands in for lib/linux/gettimeofday.c.
  *

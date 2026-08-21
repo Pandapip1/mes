@@ -288,6 +288,8 @@ lib/windows/dup.c
 lib/windows/dup2.c
 lib/windows/execve.c
 lib/stub/fcntl.c
+lib/windows/wow64resolve.c
+lib/windows/wow64gate.c
 lib/windows/fork.c
 lib/stub/fstat.c
 lib/stub/fsync.c

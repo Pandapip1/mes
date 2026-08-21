@@ -19,6 +19,7 @@
 #include <windows/ntcall.h>
 #include <windows/ntdll.h>
 #include <mes/lib.h>
+#include <sys/utsname.h>
 
 /* Stands in for lib/linux/uname.c.
  *

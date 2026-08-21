@@ -18,6 +18,8 @@
  */
 #include <windows/ntdll.h>
 #include <mes/lib.h>
+#include <sys/types.h>
+#include <sys/resource.h>
 
 /* Stands in for lib/linux/wait4.c.  Upstream has waitpid call wait4 on
  * architectures with no waitpid syscall; here it is the other way round,

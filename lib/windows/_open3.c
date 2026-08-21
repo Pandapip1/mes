@@ -19,6 +19,8 @@
 #include <windows/ntcall.h>
 #include <windows/ntdll.h>
 #include <mes/lib.h>
+#include <fcntl.h>
+#include <errno.h>
 
 /* Stands in for lib/linux/_open3.c.
  *

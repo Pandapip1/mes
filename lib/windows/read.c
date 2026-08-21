@@ -19,6 +19,7 @@
 #include <windows/ntcall.h>
 #include <windows/ntdll.h>
 #include <mes/lib.h>
+#include <fcntl.h>
 
 /* Stands in for lib/linux/read.c.  NtReadFile is NtWriteFile's twin, and an
  * NTSTATUS below zero is how the end of the file arrives as much as how a
