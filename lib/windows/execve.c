@@ -240,7 +240,7 @@ __inheritable (int handle)
 
   out = malloc (4);
   out[0] = 0;
-  NtDuplicateObject = __ntdll (NT_DUP);
+  NtDuplicateObject = __ntdll_resolve ("NtDuplicateObject");
   /* forwards: NtDuplicateObject (-1, handle, -1, out, 0, OBJ_INHERIT,
    *                              DUPLICATE_SAME_ACCESS) */
   if (NtDuplicateObject (2, 2, 0, out, -1, handle, -1) != 0)
@@ -285,7 +285,7 @@ __spawn (char const *file_name, char **argv, char **env)
   out = malloc (4);
   out[0] = 0;
 
-  RtlCreateProcessParameters = __ntdll (NT_MAKEPARAMS);
+  RtlCreateProcessParameters = __ntdll_resolve ("RtlCreateProcessParameters");
   /* forwards: RtlCreateProcessParameters (out, image, 0, 0, cmd, block,
    *                                       0, 0, 0, 0) */
   rc = RtlCreateProcessParameters (0, 0, 0, 0, block, cmd, 0, 0, image, out);
@@ -342,14 +342,14 @@ __spawn (char const *file_name, char **argv, char **env)
     }
   info[0] = 68;
 
-  RtlCreateUserProcess = __ntdll (NT_CREATEPROC);
+  RtlCreateUserProcess = __ntdll_resolve ("RtlCreateUserProcess");
   /* forwards: RtlCreateUserProcess (ntpath, OBJ_CASE_INSENSITIVE, params,
    *                                 0, 0, 0, TRUE, 0, 0, info) */
   rc = RtlCreateUserProcess (info, 0, 0, 1, 0, 0, 0, params, 0x40, ntpath);
   if (rc != 0)
     return -1;
 
-  NtResumeThread = __ntdll (NT_RESUME);
+  NtResumeThread = __ntdll_resolve ("NtResumeThread");
   thread = info[2];
   /* forwards: NtResumeThread (thread, 0) */
   NtResumeThread (0, thread);

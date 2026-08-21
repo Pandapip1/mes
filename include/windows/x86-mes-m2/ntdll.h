@@ -25,6 +25,12 @@
  * from stage0-pe32 fcc842d (x86/M2libc-windows/ntdll-slots.h), which that
  * project generates from the same list it generates the .hex2 from.  If the
  * .hex2 beside it is updated, this must be too.
+ *
+ * Nothing compiled from C in this port calls __ntdll (slot) by one of these
+ * any more -- see ntdll.c's own top-of-file comment for __ntdll_resolve,
+ * which replaced it everywhere above the hand-assembled stages.  These
+ * stay, because lib/m2/x86/ntdll-i386.hex2 still fills the same table for
+ * those stages, which have no C compiler yet to call __ntdll_resolve with.
  */
 #define NT_CREATE      0   /* NtCreateFile: open a file, or make one */
 #define NT_READ        1   /* NtReadFile: read */
@@ -60,6 +66,8 @@
 
 int *__iosb ();
 void *__ntdll (int slot);
+int __peb (void);
+void *__ntdll_resolve (char const *name);
 int *__stdslot (int n);
 int __handle (int filedes);
 char *__widen (char const *s);

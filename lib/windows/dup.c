@@ -35,7 +35,7 @@ dup (int old)
   out[0] = 0;
   handle = __handle (old);
 
-  NtDuplicateObject = __ntdll (NT_DUP);
+  NtDuplicateObject = __ntdll_resolve ("NtDuplicateObject");
   /* forwards: NtDuplicateObject (-1, handle, -1, out, 0, 0,
    *                              DUPLICATE_SAME_ACCESS) */
   rc = NtDuplicateObject (2, 0, 0, out, -1, handle, -1);

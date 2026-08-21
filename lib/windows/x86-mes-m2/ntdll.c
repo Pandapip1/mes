@@ -22,13 +22,26 @@
  *
  * Windows has no syscall a program may make directly, so there is no
  * _sys_call here for lib/windows/ to be thin wrappers over the way
- * lib/linux/ is over int $0x80.  What there is instead:
- * lib/m2/x86/ntdll-i386.hex2 finds ntdll through the PEB before main runs and
- * resolves the routines this needs out of its export table by name, into a
- * table of addresses.  __ntdll hands one back by index, and the caller calls
- * it through a function pointer.
+ * lib/linux/ is over int $0x80.  What there is instead, for most of this
+ * file's own history, was this: lib/m2/x86/ntdll-i386.hex2 finds ntdll
+ * through the PEB before main runs and resolves the routines this needs out
+ * of its export table by name, into a table of addresses, and __ntdll hands
+ * one back by index.
  *
- * Three things about those calls are not obvious and are not optional.
+ * Every caller below now reaches ntdll a different way instead:
+ * __ntdll_resolve (name) walks this process's own PEB -> Ldr -> module list
+ * and ntdll's own export table itself, in-process, and hands back the same
+ * kind of address __ntdll (slot) did.  Ported from stage0-pe32's M2libc fork
+ * (M2libc/x86/windows/ntdll.c), which measured it byte-identical to the
+ * index table for every routine this port ever calls.  __ntdll (slot) and
+ * lib/windows/x86-mes-m2/ntdll.h's NT_* constants stay in place below --
+ * lib/m2/x86/ntdll-i386.hex2 still fills the same table for the
+ * hand-assembled stages before this file's own C exists to call
+ * __ntdll_resolve -- but nothing compiled from C in this port calls __ntdll
+ * by slot any more.
+ *
+ * Either way, the call itself is through a function pointer, and three
+ * things about that are not obvious and are not optional.
  *
  *   The arguments go in backwards.  M2-Planet pushes the first argument
  *   first, so it lands furthest from the stack pointer, and a stdcall callee
@@ -74,6 +87,195 @@ __ntdll (int slot)
   asm ("sal_eax, !2");
   asm ("add_eax, &fn_table");
   asm ("mov_eax,[eax]");
+}
+
+/* This process's own PEB, the root of __ntdll_resolve's module walk below --
+ * the same fs:0x30 read __stdslot already does on the way to
+ * ProcessParameters. */
+int
+__peb (void)
+{
+  asm ("mov_eax,[fs:DWORD] %0x30");
+}
+
+/* __ntdll_rd/__ntdll_rw/__ntdll_rb: read a dword/word/byte at an address
+ * held as a plain int rather than a typed pointer, the same convention
+ * brk.c's __alloc_addr/__alloc_size already use for addresses handed to
+ * ntdll. */
+int
+__ntdll_rd (int addr)
+{
+  int *p;
+
+  p = addr;
+  return p[0];
+}
+
+int
+__ntdll_rw (int addr)
+{
+  char *p;
+
+  p = addr;
+  return (255 & p[0]) + (256 * (255 & p[1]));
+}
+
+int
+__ntdll_rb (int addr)
+{
+  char *p;
+
+  p = addr;
+  return 255 & p[0];
+}
+
+/* Walk this process's own PEB -> Ldr -> InMemoryOrderModuleList for a module
+ * named (ASCII) `want', matched against its UTF-16 BaseDllName one code unit
+ * at a time -- the in-process, native-bitness counterpart of
+ * wow64resolve.c's __wow64_find_module, needing no cross-bitness read since
+ * this is the same process's own memory.  PEB->Ldr is at +0x0C and
+ * Ldr->InMemoryOrderModuleList's head is at +0x14.  Walking the list keeps a
+ * pointer to each entry's InMemoryOrderLinks field (LDR_DATA_TABLE_ENTRY
+ * +0x08) rather than the entry's own base, which is why DllBase (real
+ * offset +0x18) reads back at cur+0x10 and BaseDllName.Length/Buffer (real
+ * offsets +0x2C/+0x30) at cur+0x24/+0x28 below.  Returns the module base, or
+ * 0 if the (circular) list runs out first. */
+int
+__ntdll_find_module (char const *want)
+{
+  int peb;
+  int ldr;
+  int head;
+  int cur;
+  int base;
+  int name_len;
+  int name;
+  int i;
+  int match;
+  int guard;
+
+  peb = __peb ();
+  ldr = __ntdll_rd (peb + 0x0C);
+  head = ldr + 0x14;
+  cur = __ntdll_rd (head);
+
+  guard = 0;
+  while (guard < 512)
+    {
+      if (cur == head)
+        break;
+      if (cur == 0)
+        break;
+
+      base = __ntdll_rd (cur + 0x10);
+      name_len = __ntdll_rw (cur + 0x24);
+      name = __ntdll_rd (cur + 0x28);
+
+      match = 1;
+      i = 0;
+      while (want[i] != 0)
+        {
+          if (2 * i >= name_len)
+            {
+              match = 0;
+              break;
+            }
+          if (__ntdll_rb (name + 2 * i) != want[i])
+            {
+              match = 0;
+              break;
+            }
+          i = i + 1;
+        }
+      if (match != 0 && name_len == 2 * i)
+        return base;
+
+      cur = __ntdll_rd (cur);
+      guard = guard + 1;
+    }
+  return 0;
+}
+
+/* Resolve one export by name out of a PE32 image already mapped at `base' in
+ * this process -- the native-bitness counterpart of wow64resolve.c's
+ * __wow64_resolve_export.  IMAGE_NT_HEADERS32's export data directory is at
+ * +0x78 (+0x88 in the PE32+ header __wow64_resolve_export uses, the
+ * difference being the width of the two headers' pointer-sized fields); the
+ * export directory's four arrays (NumberOfNames +24, AddressOfFunctions
+ * +28, AddressOfNames +32, AddressOfNameOrdinals +36) are the same ordinary
+ * 32-bit-RVA fields regardless of image bitness.  Returns 0 if `name' is not
+ * among the exports. */
+int
+__ntdll_resolve_export (int base, char const *name)
+{
+  int e_lfanew;
+  int nt;
+  int export_rva;
+  int export_dir;
+  int num_names;
+  int addr_funcs;
+  int addr_names;
+  int addr_ords;
+  int i;
+  int name_rva;
+  int match;
+  int j;
+  int ord;
+  int func_rva;
+
+  e_lfanew = __ntdll_rd (base + 0x3C);
+  nt = base + e_lfanew;
+  export_rva = __ntdll_rd (nt + 0x78);
+  export_dir = base + export_rva;
+
+  num_names = __ntdll_rd (export_dir + 24);
+  addr_funcs = __ntdll_rd (export_dir + 28);
+  addr_names = __ntdll_rd (export_dir + 32);
+  addr_ords = __ntdll_rd (export_dir + 36);
+
+  i = 0;
+  while (i < num_names)
+    {
+      name_rva = __ntdll_rd (base + addr_names + 4 * i);
+      match = 1;
+      j = 0;
+      while (name[j] != 0)
+        {
+          if (__ntdll_rb (base + name_rva + j) != name[j])
+            {
+              match = 0;
+              break;
+            }
+          j = j + 1;
+        }
+      if (match != 0 && __ntdll_rb (base + name_rva + j) == 0)
+        {
+          ord = __ntdll_rw (base + addr_ords + 2 * i);
+          func_rva = __ntdll_rd (base + addr_funcs + 4 * ord);
+          return base + func_rva;
+        }
+      i = i + 1;
+    }
+  return 0;
+}
+
+/* One ntdll routine, resolved by name rather than by resolve_all's fixed
+ * index table -- see this file's own top-of-file comment.  ntdll.dll's base
+ * is cached, since every caller wants a different export out of the same
+ * module.  Returns 0 if ntdll.dll's export table has no such name. */
+int __ntdll_base_cache;
+int __ntdll_base_have;
+void *
+__ntdll_resolve (char const *name)
+{
+  if (__ntdll_base_have == 0)
+    {
+      __ntdll_base_cache = __ntdll_find_module ("ntdll.dll");
+      __ntdll_base_have = 1;
+    }
+  if (__ntdll_base_cache == 0)
+    return 0;
+  return __ntdll_resolve_export (__ntdll_base_cache, name);
 }
 
 /* Where one of the three standard handles is kept, so that dup2 can replace
@@ -164,7 +366,7 @@ __ntobject (char const *path)
   int *oa;
   int i;
 
-  RtlDosPathNameToNtPathName_U = __ntdll (NT_RTLPATH);
+  RtlDosPathNameToNtPathName_U = __ntdll_resolve ("RtlDosPathNameToNtPathName_U");
 
   name = malloc (8);
   name[0] = 0;

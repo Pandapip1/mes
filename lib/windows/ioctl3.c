@@ -55,7 +55,7 @@ ioctl3 (int filedes, size_t command, long data)
   info[1] = 0;
   handle = __handle (filedes);
 
-  NtQueryVolumeInformationFile = __ntdll (NT_QUERYVOL);
+  NtQueryVolumeInformationFile = __ntdll_resolve ("NtQueryVolumeInformationFile");
   /* forwards: NtQueryVolumeInformationFile (handle, iosb, info, 8,
    *                                         FileFsDeviceInformation) */
   rc = NtQueryVolumeInformationFile (4, 8, info, iosb, handle);

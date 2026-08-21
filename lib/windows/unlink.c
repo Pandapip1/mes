@@ -34,7 +34,7 @@ unlink (char const *file_name)
   if (oa == 0)
     return -1;
 
-  NtDeleteFile = __ntdll (NT_DELETE);
+  NtDeleteFile = __ntdll_resolve ("NtDeleteFile");
   if (NtDeleteFile (oa) != 0)
     return -1;
   return 0;

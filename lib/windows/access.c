@@ -54,7 +54,7 @@ access (char const *file_name, int how)
       i = i + 1;
     }
 
-  NtQueryAttributesFile = __ntdll (NT_QUERYATTR);
+  NtQueryAttributesFile = __ntdll_resolve ("NtQueryAttributesFile");
   /* forwards: NtQueryAttributesFile (oa, basic) */
   if (NtQueryAttributesFile (basic, oa) != 0)
     return -1;

@@ -41,7 +41,7 @@ uname (struct utsname *uts)
   int i;
   int at;
 
-  RtlGetVersion = __ntdll (NT_VERSION);
+  RtlGetVersion = __ntdll_resolve ("RtlGetVersion");
 
   /* RTL_OSVERSIONINFOW: five words and then 128 UTF-16 characters */
   info = malloc (276);

@@ -72,7 +72,7 @@ gettimeofday (struct timeval *tv, struct timezone *tz)
   ft[0] = 0;
   ft[1] = 0;
 
-  NtQuerySystemTime = __ntdll (NT_TIME);
+  NtQuerySystemTime = __ntdll_resolve ("NtQuerySystemTime");
   if (NtQuerySystemTime (ft) != 0)
     return -1;
 

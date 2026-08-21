@@ -121,7 +121,7 @@ __gate_init ()
   size = malloc (4);
   size[0] = 0x1000;
 
-  NtAllocateVirtualMemory = __ntdll (NT_ALLOC);
+  NtAllocateVirtualMemory = __ntdll_resolve ("NtAllocateVirtualMemory");
   /* forwards: NtAllocateVirtualMemory (-1, base, 0, size, MEM_COMMIT|
    *   MEM_RESERVE, PAGE_EXECUTE_READWRITE) -- -1 is NtCurrentProcess: the
    *   gate lives in this same process, not the clone's. */

@@ -76,7 +76,7 @@ __nt_alloc (int type)
   int *addr;
   int *size;
 
-  NtAllocateVirtualMemory = __ntdll (NT_ALLOC);
+  NtAllocateVirtualMemory = __ntdll_resolve ("NtAllocateVirtualMemory");
   addr = &__alloc_addr;         /* not in the argument list: see ntdll.c */
   size = &__alloc_size;
 

@@ -57,7 +57,7 @@ __wow64_selfhandle ()
 
   out = malloc (4);
   out[0] = 0;
-  NtDuplicateObject = __ntdll (NT_DUP);
+  NtDuplicateObject = __ntdll_resolve ("NtDuplicateObject");
   /* forwards: NtDuplicateObject (-1, -1, -1, out, 0, 0,
    *                              DUPLICATE_SAME_ACCESS) */
   if (NtDuplicateObject (2, 0, 0, out, -1, -1, -1) != 0)
@@ -112,7 +112,7 @@ __wow64_rd64 (int lo, int hi, int *buf, int len)
   got = __wow64_rd64_got;
   got[0] = 0;
   got[1] = 0;
-  NtWow64ReadVirtualMemory64 = __ntdll (NT_WOW64READVM);
+  NtWow64ReadVirtualMemory64 = __ntdll_resolve ("NtWow64ReadVirtualMemory64");
   /* forwards: NtWow64ReadVirtualMemory64 (self, lo, hi, buf, len, 0, got) --
    * self, not -1: see __wow64_selfhandle above. */
   return NtWow64ReadVirtualMemory64 (got, 0, len, buf, hi, lo, self);
@@ -168,7 +168,7 @@ __wow64_selfpeb (int *hi_out)
   retlen[0] = 0;
   self = __wow64_selfhandle ();
 
-  NtWow64QueryInformationProcess64 = __ntdll (NT_WOW64QINFO);
+  NtWow64QueryInformationProcess64 = __ntdll_resolve ("NtWow64QueryInformationProcess64");
   /* forwards: NtWow64QueryInformationProcess64 (self, 0, info, 48, retlen) */
   if (NtWow64QueryInformationProcess64 (retlen, 48, info, 0, self) != 0)
     {

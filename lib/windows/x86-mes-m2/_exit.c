@@ -28,7 +28,7 @@ _exit (int code)
 {
   int (*NtTerminateProcess) (int, int);
 
-  NtTerminateProcess = __ntdll (NT_EXIT);
+  NtTerminateProcess = __ntdll_resolve ("NtTerminateProcess");
   /* forwards: NtTerminateProcess (-1, code) */
   NtTerminateProcess (code, -1);
 }

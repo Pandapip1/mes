@@ -36,7 +36,7 @@ _getcwd (char *buffer, size_t size)
   w = malloc (2 * size + 2);
   room = 2 * size;              /* not in the argument list: see ntdll.c */
 
-  RtlGetCurrentDirectory_U = __ntdll (NT_GETCWD);
+  RtlGetCurrentDirectory_U = __ntdll_resolve ("RtlGetCurrentDirectory_U");
   /* forwards: RtlGetCurrentDirectory_U (room, w) */
   bytes = RtlGetCurrentDirectory_U (w, room);
   if (bytes == 0)

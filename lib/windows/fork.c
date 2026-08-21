@@ -80,9 +80,9 @@
  *
  * Until a real 32-bit Windows or Wine measurement says otherwise, fork falls
  * back to plain -1 whenever the clone-based fix cannot run at all: no
- * RtlCloneUserProcess (Wine, per its own slot comment), or a clone that fails
- * for some other reason.  What Windows can do instead is start a program
- * directly, which is lib/windows/execve.c, and wait for it, which is
+ * RtlCloneUserProcess (absent on Wine, where it resolves to 0), or a clone
+ * that fails for some other reason.  What Windows can do instead is start a
+ * program directly, which is lib/windows/execve.c, and wait for it, which is
  * lib/windows/waitpid.c:
  *
  *   pid = __spawn (file, argv, envp); waitpid (pid, &status, 0);
@@ -111,7 +111,7 @@ __clone_process ()
   int i;
   int rc;
 
-  RtlCloneUserProcess = __ntdll (NT_CLONE);
+  RtlCloneUserProcess = __ntdll_resolve ("RtlCloneUserProcess");
   if (RtlCloneUserProcess == 0)
     return -1;
 
@@ -136,7 +136,7 @@ __clone_process ()
 
   /* The clone's first thread starts suspended, the same way __spawn's does,
    * so the child does not come back from the call above until let go. */
-  NtResumeThread = __ntdll (NT_RESUME);
+  NtResumeThread = __ntdll_resolve ("NtResumeThread");
   thread = info[2];
   /* forwards: NtResumeThread (thread, 0) */
   NtResumeThread (0, thread);
@@ -192,7 +192,7 @@ __clone_process_wow64fix ()
   int rc;
   int i;
 
-  RtlCloneUserProcess = __ntdll (NT_CLONE);
+  RtlCloneUserProcess = __ntdll_resolve ("RtlCloneUserProcess");
   if (RtlCloneUserProcess == 0)
     return -1;
 
@@ -207,8 +207,8 @@ __clone_process_wow64fix ()
    * enter, no compat-mode FS-base indirection to miss, so this whole defect
    * class has nowhere to come from.  wow64cpu.dll not being findable in this
    * process's own 64-bit module list is the signal for that -- the same
-   * shape NT_CLONE's own slot comment already uses for Wine, where the slot
-   * just stays 0 rather than the caller being made to guess.  Fall back to
+   * shape RtlCloneUserProcess itself already uses for Wine, where it just
+   * resolves to 0 rather than the caller being made to guess.  Fall back to
    * the plain clone: no gate, no 64-bit resolution, none of it.  Not tested
    * against real 32-bit Windows -- neither this project nor stage0-pe32 has
    * such hardware or VM to test on. */
@@ -283,7 +283,7 @@ __clone_process_wow64fix ()
   rc = __gate_call (gate, getctx_lo, getctx_hi[0], thread, 0, ctxA, 0);
   if (rc != 0)
     {
-      NtTerminateProcess = __ntdll (NT_EXIT);
+      NtTerminateProcess = __ntdll_resolve ("NtTerminateProcess");
       NtTerminateProcess (1, child);
       return -1;
     }
@@ -311,7 +311,7 @@ __clone_process_wow64fix ()
   rc = __gate_call (gate, setctx_lo, setctx_hi[0], thread, 0, ctxB, 0);
   if (rc != 0)
     {
-      NtTerminateProcess = __ntdll (NT_EXIT);
+      NtTerminateProcess = __ntdll_resolve ("NtTerminateProcess");
       NtTerminateProcess (1, child);
       return -1;
     }
@@ -325,8 +325,8 @@ __clone_process_wow64fix ()
    * same bit RunSimulatedCode's own entry tests to decide whether to
    * reprogram FS.  Get first, so nothing already correct in the CPU-area
    * CONTEXT is stepped on -- only Eax changes. */
-  NtGetContextThread = __ntdll (NT_GETCONTEXT);
-  NtSetContextThread = __ntdll (NT_SETCONTEXT);
+  NtGetContextThread = __ntdll_resolve ("NtGetContextThread");
+  NtSetContextThread = __ntdll_resolve ("NtSetContextThread");
   ctxA = __walloc16 (0x2CC);
   i = 0;
   while (i < 179)
@@ -338,7 +338,7 @@ __clone_process_wow64fix ()
   rc = NtGetContextThread (ctxA, thread);
   if (rc != 0)
     {
-      NtTerminateProcess = __ntdll (NT_EXIT);
+      NtTerminateProcess = __ntdll_resolve ("NtTerminateProcess");
       NtTerminateProcess (1, child);
       return -1;
     }
@@ -346,7 +346,7 @@ __clone_process_wow64fix ()
   rc = NtSetContextThread (ctxA, thread);
   if (rc != 0)
     {
-      NtTerminateProcess = __ntdll (NT_EXIT);
+      NtTerminateProcess = __ntdll_resolve ("NtTerminateProcess");
       NtTerminateProcess (1, child);
       return -1;
     }
@@ -376,18 +376,18 @@ __clone_process_wow64fix ()
   zero[0] = 0;
   wrote = malloc (4);
   wrote[0] = 0;
-  NtWriteVirtualMemory = __ntdll (NT_WRITEVM);
+  NtWriteVirtualMemory = __ntdll_resolve ("NtWriteVirtualMemory");
   /* forwards: NtWriteVirtualMemory (child, lock_addr, zero, 4, wrote) */
   rc = NtWriteVirtualMemory (wrote, 4, zero, lock_addr, child);
   if (rc != 0)
     {
-      NtTerminateProcess = __ntdll (NT_EXIT);
+      NtTerminateProcess = __ntdll_resolve ("NtTerminateProcess");
       NtTerminateProcess (1, child);
       return -1;
     }
 
   /* -- Step D: let it go -- */
-  NtResumeThread = __ntdll (NT_RESUME);
+  NtResumeThread = __ntdll_resolve ("NtResumeThread");
   /* forwards: NtResumeThread (thread, 0) */
   NtResumeThread (0, thread);
 

@@ -37,7 +37,7 @@ _write (int filedes, void *buffer, int size)
   int handle;
   int rc;
 
-  NtWriteFile = __ntdll (NT_WRITE);
+  NtWriteFile = __ntdll_resolve ("NtWriteFile");
   iosb = __iosb ();
   iosb[0] = 0;
   iosb[1] = 0;

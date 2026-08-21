@@ -66,7 +66,7 @@ _open3 (char const *file_name, int flags, int mask)
         disposition = 1;        /* FILE_OPEN */
     }
 
-  NtCreateFile = __ntdll (NT_CREATE);
+  NtCreateFile = __ntdll_resolve ("NtCreateFile");
   /* forwards: NtCreateFile (handle, access, oa, iosb, 0,
    *                         FILE_ATTRIBUTE_NORMAL, FILE_SHARE_READ|WRITE,
    *                         disposition, FILE_SYNCHRONOUS_IO_NONALERT, 0, 0) */

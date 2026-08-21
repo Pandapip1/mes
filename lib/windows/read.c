@@ -32,7 +32,7 @@ read (int filedes, void *buffer, size_t size)
   int handle;
   int rc;
 
-  NtReadFile = __ntdll (NT_READ);
+  NtReadFile = __ntdll_resolve ("NtReadFile");
   iosb = __iosb ();
   iosb[0] = 0;
   iosb[1] = 0;

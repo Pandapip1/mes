@@ -43,7 +43,7 @@ waitpid (pid_t pid, int *status_ptr, int options)
   if (pid <= 0)
     return -1;
 
-  NtWaitForSingleObject = __ntdll (NT_WAIT);
+  NtWaitForSingleObject = __ntdll_resolve ("NtWaitForSingleObject");
   /* forwards: NtWaitForSingleObject (pid, FALSE, 0) -- 0 is no timeout */
   rc = NtWaitForSingleObject (0, 0, pid);
   if (rc < 0)
@@ -58,7 +58,7 @@ waitpid (pid_t pid, int *status_ptr, int options)
       i = i + 1;
     }
 
-  NtQueryInformationProcess = __ntdll (NT_QUERYPROC);
+  NtQueryInformationProcess = __ntdll_resolve ("NtQueryInformationProcess");
   /* forwards: NtQueryInformationProcess (pid, ProcessBasicInformation, basic,
    *                                      24, 0) */
   rc = NtQueryInformationProcess (0, 24, basic, 0, pid);
