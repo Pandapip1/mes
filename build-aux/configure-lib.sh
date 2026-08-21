@@ -404,6 +404,14 @@ lib/stub/sigemptyset.c
 lib/$mes_cpu-mes-$compiler/setjmp.c
 "
 
+# ldexpl is in this list and not in libc_tcc_SOURCES, where the branch it
+# comes from puts it.  TinyCC is what needs it -- tccpp.c calls it to parse a
+# floating-point constant -- and TinyCC compiles from this list.  MesCC
+# compiles libc+tcc, has no use for it, and would have to make sense of a long
+# double to get there.
+#
+# Note that everything between the quotes below is a file name: this is one
+# shell string, so a # in it is not a comment but an entry.
 libc_gnu_SOURCES="
 $libc_tcc_SOURCES
 lib/ctype/isalnum.c
@@ -413,6 +421,7 @@ lib/ctype/iscntrl.c
 lib/ctype/isgraph.c
 lib/ctype/isprint.c
 lib/ctype/ispunct.c
+lib/math/ldexpl.c
 lib/math/ceil.c
 lib/math/fabs.c
 lib/math/floor.c
