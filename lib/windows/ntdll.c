@@ -34,7 +34,7 @@
  * kind of address __ntdll (slot) did.  Ported from stage0-pe32's M2libc fork
  * (M2libc/x86/windows/ntdll.c), which measured it byte-identical to the
  * index table for every routine this port ever calls.  __ntdll (slot) and
- * lib/windows/x86-mes-m2/ntdll.h's NT_* constants stay in place below --
+ * lib/windows/ntdll.h's NT_* constants stay in place below --
  * lib/m2/x86/ntdll-i386.hex2 still fills the same table for the
  * hand-assembled stages before this file's own C exists to call
  * __ntdll_resolve -- but nothing compiled from C in this port calls __ntdll
@@ -63,7 +63,7 @@
  *   worked out into a local on the line before.
  *
  * The routine at each index is decided by lib/m2/x86/ntdll-i386.hex2, and
- * lib/windows/x86-mes-m2/ntdll.h names them.
+ * lib/windows/ntdll.h names them.
  *
  * Filenames: ntdll takes UTF-16, inside an OBJECT_ATTRIBUTES around a
  * UNICODE_STRING, and for a file on disk it wants an NT path (\??\C:\...)
@@ -76,27 +76,8 @@
  * Nothing here frees anything.  Mes's malloc never gives memory back either.
  */
 
-#include <windows/x86-mes-m2/ntdll.h>
+#include <windows/ntdll.h>
 #include <mes/lib.h>
-
-/* An ntdll routine, by the index resolve_all put it at. */
-void *
-__ntdll (int slot)
-{
-  asm ("mov____0x8(%ebp),%eax !-4");
-  asm ("sal_eax, !2");
-  asm ("add_eax, &fn_table");
-  asm ("mov_eax,[eax]");
-}
-
-/* This process's own PEB, the root of __ntdll_resolve's module walk below --
- * the same fs:0x30 read __stdslot already does on the way to
- * ProcessParameters. */
-int
-__peb (void)
-{
-  asm ("mov_eax,[fs:DWORD] %0x30");
-}
 
 /* __ntdll_rd/__ntdll_rw/__ntdll_rb: read a dword/word/byte at an address
  * held as a plain int rather than a typed pointer, the same convention
@@ -284,13 +265,12 @@ __ntdll_resolve (char const *name)
 int *
 __stdslot (int n)
 {
-  asm ("mov____0x8(%ebp),%eax !-4");
-  asm ("sal_eax, !2");
-  asm ("add_eax, %24");
-  asm ("mov_ebx,eax");
-  asm ("mov_eax,[fs:DWORD] %0x30");
-  asm ("mov_eax,[eax+BYTE] !16");
-  asm ("add_eax,ebx");
+  int params;
+
+  /* PEB + 16 is ProcessParameters; its StandardInput is 24 in, and Output
+     and Error follow it. */
+  params = __ntdll_rd (__peb () + 16);
+  return params + 24 + n * 4;
 }
 
 /* A file descriptor here is a Windows handle, with 0, 1 and 2 still meaning

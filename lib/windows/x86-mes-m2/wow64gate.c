@@ -16,7 +16,7 @@
  * You should have received a copy of the GNU General Public License
  * along with GNU Mes.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include <windows/x86-mes-m2/ntdll.h>
+#include <windows/ntdll.h>
 #include <mes/lib.h>
 
 /* The 32-to-64-to-32 heaven's-gate trampoline lib/windows/fork.c's

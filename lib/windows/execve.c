@@ -16,7 +16,7 @@
  * You should have received a copy of the GNU General Public License
  * along with GNU Mes.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include <windows/x86-mes-m2/ntdll.h>
+#include <windows/ntdll.h>
 #include <mes/lib.h>
 
 /* Stands in for lib/m2/execve.c, which reaches past the libc to int $0x80.

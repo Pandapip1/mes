@@ -20,7 +20,7 @@
 /* Checks lib/windows/x86-mes-m2/ntdll.c's __ntdll_resolve -- a native,
  * in-process PEB/export-table walk that finds an ntdll routine by name --
  * against every routine resolve_all already resolves by fixed index
- * (lib/m2/x86/ntdll-i386.hex2, include/windows/x86-mes-m2/ntdll.h), by
+ * (lib/m2/x86/ntdll-i386.hex2, include/windows/ntdll.h), by
  * comparing the two addresses for each.  If they always agree,
  * __ntdll_resolve is a safe replacement for the index table in anything
  * built with a C compiler; the hand-assembled crt1.M1/pe-end.M1 stage has
@@ -32,7 +32,7 @@
  * checks the identical mechanism in the M2libc fork this was ported from. */
 
 #include <stdio.h>
-#include <windows/x86-mes-m2/ntdll.h>
+#include <windows/ntdll.h>
 
 int
 main (int argc, char **argv)

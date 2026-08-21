@@ -20,7 +20,12 @@
 #ifndef __MES_WINDOWS_NTDLL_H
 #define __MES_WINDOWS_NTDLL_H
 
-/* Which ntdll routine lib/m2/x86/ntdll-i386.hex2 resolved into which slot.
+/* The interface every file in lib/windows/ is written against, whichever
+ * compiler is building it.  What cannot be said in C -- the PEB read, and
+ * the slot table that only a hand-assembled stage has -- lives in
+ * lib/windows/<arch>-mes-<compiler>/ntlow.c; everything else is here.
+ *
+ * Which ntdll routine lib/m2/x86/ntdll-i386.hex2 resolved into which slot.
  * The numbering is decided there and nowhere else, so this half is copied
  * from stage0-pe32 fcc842d (x86/M2libc-windows/ntdll-slots.h), which that
  * project generates from the same list it generates the .hex2 from.  If the
