@@ -18,6 +18,9 @@
  */
 #include <windows/x86-mes-m2/ntdll.h>
 #include <mes/lib.h>
+#include <time.h>
+#include <sys/time.h>
+#include <stdlib.h>
 
 /* Stands in for lib/m2/time.c, which reaches past the libc to int $0x80 and
  * so cannot be shared.  This is the same function over gettimeofday. */

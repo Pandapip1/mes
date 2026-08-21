@@ -18,6 +18,8 @@
  */
 #include <windows/x86-mes-m2/ntdll.h>
 #include <mes/lib.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 /* Stands in for lib/linux/chmod.c, and does nothing.
  *

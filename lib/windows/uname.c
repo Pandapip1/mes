@@ -18,6 +18,7 @@
  */
 #include <windows/x86-mes-m2/ntdll.h>
 #include <mes/lib.h>
+#include <sys/utsname.h>
 
 /* Stands in for lib/linux/uname.c.
  *
