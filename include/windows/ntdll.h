@@ -75,6 +75,7 @@ int __peb (void);
 void *__ntdll_resolve (char const *name);
 int *__stdslot (int n);
 int __handle (int filedes);
+int __process_basic (int at);
 char *__widen (char const *s);
 int *__dosustring (char const *path);
 int *__ntobject (char const *path);

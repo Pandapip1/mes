@@ -245,6 +245,38 @@ __ntdll_resolve (char const *name)
   return __ntdll_resolve_export (__ntdll_base_cache, name);
 }
 
+/* NtQueryInformationProcess with ProcessBasicInformation fills a
+ * PROCESS_BASIC_INFORMATION: ExitStatus, PebBaseAddress, AffinityMask,
+ * BasePriority, UniqueProcessId, InheritedFromUniqueProcessId -- six words
+ * in a 32-bit process, so the process id is the word at index 4 and its
+ * parent's at 5.  -1 is the pseudo-handle meaning this process.
+ *
+ * The id is in the TEB too, and is not read from there on purpose: that
+ * would need an fs:0x18 read, which is one more instruction to write per
+ * compiler, and this way needs none. */
+int
+__process_basic (int at)
+{
+  int NtQueryInformationProcess;
+  int *info;
+  int i;
+  int rc;
+
+  info = malloc (24);
+  i = 0;
+  while (i < 6)
+    {
+      info[i] = 0;
+      i = i + 1;
+    }
+
+  NtQueryInformationProcess = __ntdll_resolve ("NtQueryInformationProcess");
+  rc = __ntcall5 (NtQueryInformationProcess, -1, 0, info, 24, 0);
+  if (rc < 0)
+    return -1;
+  return info[at];
+}
+
 /* Where one of the three standard handles is kept, so that dup2 can replace
  * it rather than only read it.  Redirection on Windows is exactly this: the
  * three words a child inherits are the three this points into. */

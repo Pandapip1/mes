@@ -271,6 +271,59 @@ lib/linux/kill.c
 "
 fi
 
+# Windows has no syscall a program may make directly, so lib/windows/ is
+# not thin wrappers over one instruction the way lib/linux/ is: every file
+# there reaches ntdll through __ntcall.  Where this port has no answer at
+# all -- users and groups, signals, device nodes -- the generic stub is
+# named instead, which is what lib/stub/ is for.
+if test $mes_kernel = windows; then
+    libc_SOURCES="$libc_SOURCES
+lib/windows/access.c
+lib/windows/brk.c
+lib/windows/chdir.c
+lib/windows/chmod.c
+lib/windows/clock_gettime.c
+lib/windows/close.c
+lib/windows/dup.c
+lib/windows/dup2.c
+lib/windows/execve.c
+lib/stub/fcntl.c
+lib/windows/fork.c
+lib/stub/fstat.c
+lib/stub/fsync.c
+lib/windows/_getcwd.c
+lib/stub/getdents.c
+lib/windows/gettimeofday.c
+lib/windows/ioctl3.c
+lib/stub/link.c
+lib/stub/lstat.c
+lib/windows/_open3.c
+lib/linux/malloc.c
+lib/stub/mkdir.c
+lib/stub/nanosleep.c
+lib/stub/pipe.c
+lib/windows/_read.c
+lib/stub/readdir.c
+lib/stub/rename.c
+lib/stub/rmdir.c
+lib/stub/stat.c
+lib/stub/symlink.c
+lib/windows/time.c
+lib/stub/umask.c
+lib/windows/uname.c
+lib/windows/unlink.c
+lib/stub/utimensat.c
+lib/windows/wait4.c
+lib/windows/waitpid.c
+lib/windows/getpid.c
+lib/stub/kill.c
+lib/windows/$mes_cpu-mes-$compiler/ntlow.c
+lib/windows/$mes_cpu-mes-$compiler/ntcall.c
+lib/windows/$mes_cpu-mes-$compiler/iosb.c
+lib/windows/ntdll.c
+"
+fi
+
 libtcc1_SOURCES="
 lib/libtcc1.c
 "
