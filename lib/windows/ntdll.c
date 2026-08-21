@@ -40,27 +40,12 @@
  * __ntdll_resolve -- but nothing compiled from C in this port calls __ntdll
  * by slot any more.
  *
- * Either way, the call itself is through a function pointer, and three
- * things about that are not obvious and are not optional.
- *
- *   The arguments go in backwards.  M2-Planet pushes the first argument
- *   first, so it lands furthest from the stack pointer, and a stdcall callee
- *   wants the first argument nearest.  Every call below is written in reverse
- *   and carries a comment saying what it reads as forwards.
- *
- *   Nothing else has to be done about stdcall.  ntdll pops its own arguments,
- *   which would strand a caller that popped them again -- but M2-Planet saves
- *   the stack pointer before pushing and restores it from there afterwards,
- *   rather than adding back what it pushed.
- *
- *   No argument may touch EDX.  M2-Planet keeps the pointer it is about to
- *   call in EDX across the argument list and never puts it back, so an
- *   argument that writes EDX replaces the address about to be called and the
- *   program jumps to zero.  Three things write it: a function call; `*`, `/`
- *   or `%`, which compile to imul and idiv; and subscripting an array, which
- *   is a multiply by the element size even when the index is a constant.  So
- *   every argument below is a local or a constant, and anything computed is
- *   worked out into a local on the line before.
+ * Either way, the call itself goes through __ntcallN -- see
+ * <windows/ntcall.h>.  Calling ntdll directly is not a thing this file, or
+ * any file in lib/windows/, does any more: ntdll is stdcall, and what that
+ * costs depends on which compiler is building, so it is settled in one place
+ * per compiler instead of at every call site.  A caller writes the arguments
+ * in the order the routine documents and nothing else.
  *
  * The routine at each index is decided by lib/m2/x86/ntdll-i386.hex2, and
  * lib/windows/ntdll.h names them.
@@ -76,6 +61,7 @@
  * Nothing here frees anything.  Mes's malloc never gives memory back either.
  */
 
+#include <windows/ntcall.h>
 #include <windows/ntdll.h>
 #include <mes/lib.h>
 
@@ -340,7 +326,7 @@ __dosustring (char const *path)
 int *
 __ntobject (char const *path)
 {
-  int (*RtlDosPathNameToNtPathName_U) (int, int, int, int);
+  int RtlDosPathNameToNtPathName_U;
   char *wide;
   int *name;
   int *oa;
@@ -351,10 +337,9 @@ __ntobject (char const *path)
   name = malloc (8);
   name[0] = 0;
   name[1] = 0;
-  wide = __widen (path);        /* not in the argument list: see above */
+  wide = __widen (path);
 
-  /* forwards: RtlDosPathNameToNtPathName_U (wide, name, 0, 0) */
-  if (RtlDosPathNameToNtPathName_U (0, 0, name, wide) == 0)
+  if (__ntcall4 (RtlDosPathNameToNtPathName_U, wide, name, 0, 0) == 0)
     return 0;
 
   oa = malloc (24);
