@@ -16,6 +16,7 @@
  * You should have received a copy of the GNU General Public License
  * along with GNU Mes.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include <windows/ntcall.h>
 #include <windows/ntdll.h>
 #include <mes/lib.h>
 
@@ -27,7 +28,7 @@
 int
 unlink (char const *file_name)
 {
-  int (*NtDeleteFile) (int);
+  int NtDeleteFile;
   int *oa;
 
   oa = __ntobject (file_name);
@@ -35,7 +36,7 @@ unlink (char const *file_name)
     return -1;
 
   NtDeleteFile = __ntdll_resolve ("NtDeleteFile");
-  if (NtDeleteFile (oa) != 0)
+  if (__ntcall1 (NtDeleteFile, oa) != 0)
     return -1;
   return 0;
 }

@@ -16,6 +16,7 @@
  * You should have received a copy of the GNU General Public License
  * along with GNU Mes.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include <windows/ntcall.h>
 #include <windows/ntdll.h>
 #include <mes/lib.h>
 
@@ -104,8 +105,8 @@
 int
 __clone_process ()
 {
-  int (*RtlCloneUserProcess) (int, int, int, int, int);
-  int (*NtResumeThread) (int, int);
+  int RtlCloneUserProcess;
+  int NtResumeThread;
   int *info;
   int thread;
   int i;
@@ -125,9 +126,7 @@ __clone_process ()
     }
   info[0] = 68;
 
-  /* forwards: RtlCloneUserProcess (RTL_CLONE_PROCESS_FLAGS_INHERIT_HANDLES,
-   *                                0, 0, 0, info) */
-  rc = RtlCloneUserProcess (info, 0, 0, 0, 2);
+  rc = __ntcall5 (RtlCloneUserProcess, 2, 0, 0, 0, info);
 
   if (rc == 0x129)
     return 0;                   /* STATUS_PROCESS_CLONED: this is the child */
@@ -138,8 +137,7 @@ __clone_process ()
    * so the child does not come back from the call above until let go. */
   NtResumeThread = __ntdll_resolve ("NtResumeThread");
   thread = info[2];
-  /* forwards: NtResumeThread (thread, 0) */
-  NtResumeThread (0, thread);
+  __ntcall2 (NtResumeThread, thread, 0);
 
   return info[1];               /* the parent gets a handle to it */
 }
@@ -158,12 +156,12 @@ __clone_process ()
 int
 __clone_process_wow64fix ()
 {
-  int (*RtlCloneUserProcess) (int, int, int, int, int);
-  int (*NtResumeThread) (int, int);
-  int (*NtGetContextThread) (int, int);
-  int (*NtSetContextThread) (int, int);
-  int (*NtTerminateProcess) (int, int);
-  int (*NtWriteVirtualMemory) (int, int, int, int, int);
+  int RtlCloneUserProcess;
+  int NtResumeThread;
+  int NtGetContextThread;
+  int NtSetContextThread;
+  int NtTerminateProcess;
+  int NtWriteVirtualMemory;
   int *info;
   int gate;
   int *peb_hi;
@@ -252,15 +250,7 @@ __clone_process_wow64fix ()
       i = i + 1;
     }
   info[0] = 68;
-  /* forwards: RtlCloneUserProcess (RTL_CLONE_PROCESS_FLAGS_CREATE_SUSPENDED |
-   *                                RTL_CLONE_PROCESS_FLAGS_INHERIT_HANDLES,
-   *                                0, 0, 0, info) -- 3, not bare
-   * CREATE_SUSPENDED (1).  stage0-pe32 4be4514 found this the same way: with
-   * flags=1 alone the child silently loses its inherited handles -- stdout,
-   * any open file -- rather than faulting, so nothing in this port's own
-   * testing so far would have caught it either.  Ported here before that
-   * gap could sit in this file too. */
-  rc = RtlCloneUserProcess (info, 0, 0, 0, 3);
+  rc = __ntcall5 (RtlCloneUserProcess, 3, 0, 0, 0, info);
   if (rc == 0x129)
     return 0;                   /* the clone ran with no fix at all -- never
                                   * observed on stage0-pe32's VM, kept as a
@@ -284,7 +274,7 @@ __clone_process_wow64fix ()
   if (rc != 0)
     {
       NtTerminateProcess = __ntdll_resolve ("NtTerminateProcess");
-      NtTerminateProcess (1, child);
+      __ntcall2 (NtTerminateProcess, child, 1);
       return -1;
     }
   rspA_lo = ctxA[0x98 / 4];
@@ -312,7 +302,7 @@ __clone_process_wow64fix ()
   if (rc != 0)
     {
       NtTerminateProcess = __ntdll_resolve ("NtTerminateProcess");
-      NtTerminateProcess (1, child);
+      __ntcall2 (NtTerminateProcess, child, 1);
       return -1;
     }
 
@@ -335,19 +325,19 @@ __clone_process_wow64fix ()
       i = i + 1;
     }
   ctxA[0] = 0x10007;
-  rc = NtGetContextThread (ctxA, thread);
+  rc = __ntcall2 (NtGetContextThread, thread, ctxA);
   if (rc != 0)
     {
       NtTerminateProcess = __ntdll_resolve ("NtTerminateProcess");
-      NtTerminateProcess (1, child);
+      __ntcall2 (NtTerminateProcess, child, 1);
       return -1;
     }
   ctxA[44] = 0x129;              /* Eax at +0xB0 */
-  rc = NtSetContextThread (ctxA, thread);
+  rc = __ntcall2 (NtSetContextThread, thread, ctxA);
   if (rc != 0)
     {
       NtTerminateProcess = __ntdll_resolve ("NtTerminateProcess");
-      NtTerminateProcess (1, child);
+      __ntcall2 (NtTerminateProcess, child, 1);
       return -1;
     }
 
@@ -377,19 +367,17 @@ __clone_process_wow64fix ()
   wrote = malloc (4);
   wrote[0] = 0;
   NtWriteVirtualMemory = __ntdll_resolve ("NtWriteVirtualMemory");
-  /* forwards: NtWriteVirtualMemory (child, lock_addr, zero, 4, wrote) */
-  rc = NtWriteVirtualMemory (wrote, 4, zero, lock_addr, child);
+  rc = __ntcall5 (NtWriteVirtualMemory, child, lock_addr, zero, 4, wrote);
   if (rc != 0)
     {
       NtTerminateProcess = __ntdll_resolve ("NtTerminateProcess");
-      NtTerminateProcess (1, child);
+      __ntcall2 (NtTerminateProcess, child, 1);
       return -1;
     }
 
   /* -- Step D: let it go -- */
   NtResumeThread = __ntdll_resolve ("NtResumeThread");
-  /* forwards: NtResumeThread (thread, 0) */
-  NtResumeThread (0, thread);
+  __ntcall2 (NtResumeThread, thread, 0);
 
   return child;
 }

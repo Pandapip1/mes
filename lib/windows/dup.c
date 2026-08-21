@@ -16,6 +16,7 @@
  * You should have received a copy of the GNU General Public License
  * along with GNU Mes.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include <windows/ntcall.h>
 #include <windows/ntdll.h>
 #include <mes/lib.h>
 
@@ -26,7 +27,7 @@
 int
 dup (int old)
 {
-  int (*NtDuplicateObject) (int, int, int, int, int, int, int);
+  int NtDuplicateObject;
   int *out;
   int handle;
   int rc;
@@ -36,9 +37,7 @@ dup (int old)
   handle = __handle (old);
 
   NtDuplicateObject = __ntdll_resolve ("NtDuplicateObject");
-  /* forwards: NtDuplicateObject (-1, handle, -1, out, 0, 0,
-   *                              DUPLICATE_SAME_ACCESS) */
-  rc = NtDuplicateObject (2, 0, 0, out, -1, handle, -1);
+  rc = __ntcall7 (NtDuplicateObject, -1, handle, -1, out, 0, 0, 2);
   if (rc != 0)
     return -1;
   return out[0];

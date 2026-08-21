@@ -16,6 +16,7 @@
  * You should have received a copy of the GNU General Public License
  * along with GNU Mes.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include <windows/ntcall.h>
 #include <windows/ntdll.h>
 #include <mes/lib.h>
 
@@ -72,7 +73,7 @@ long __alloc_size;
 int
 __nt_alloc (int type)
 {
-  int (*NtAllocateVirtualMemory) (int, int, int, int, int, int);
+  int NtAllocateVirtualMemory;
   int *addr;
   int *size;
 
@@ -80,10 +81,8 @@ __nt_alloc (int type)
   addr = &__alloc_addr;         /* not in the argument list: see ntdll.c */
   size = &__alloc_size;
 
-  /* forwards: NtAllocateVirtualMemory (-1, addr, 0, size, type,
-   *                                    PAGE_READWRITE) -- -1 is the
-   *                                    pseudo-handle for this process */
-  return NtAllocateVirtualMemory (PAGE_READWRITE, type, size, 0, addr, -1);
+  return __ntcall6 (NtAllocateVirtualMemory, -1, addr, 0, size, type,
+                    PAGE_READWRITE);
 }
 
 long

@@ -16,6 +16,7 @@
  * You should have received a copy of the GNU General Public License
  * along with GNU Mes.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include <windows/ntcall.h>
 #include <windows/ntdll.h>
 #include <mes/lib.h>
 
@@ -27,7 +28,7 @@
 ssize_t
 read (int filedes, void *buffer, size_t size)
 {
-  int (*NtReadFile) (int, int, int, int, int, int, int, int, int);
+  int NtReadFile;
   int *iosb;
   int handle;
   int rc;
@@ -38,8 +39,7 @@ read (int filedes, void *buffer, size_t size)
   iosb[1] = 0;
   handle = __handle (filedes);
 
-  /* forwards: NtReadFile (handle, 0, 0, 0, iosb, buffer, size, 0, 0) */
-  rc = NtReadFile (0, 0, size, buffer, iosb, 0, 0, 0, handle);
+  rc = __ntcall9 (NtReadFile, handle, 0, 0, 0, iosb, buffer, size, 0, 0);
   if (rc < 0)
     return 0;
   return iosb[1];

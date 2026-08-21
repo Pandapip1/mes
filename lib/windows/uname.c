@@ -16,6 +16,7 @@
  * You should have received a copy of the GNU General Public License
  * along with GNU Mes.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include <windows/ntcall.h>
 #include <windows/ntdll.h>
 #include <mes/lib.h>
 
@@ -35,7 +36,7 @@
 int
 uname (struct utsname *uts)
 {
-  int (*RtlGetVersion) (int);
+  int RtlGetVersion;
   int *info;
   char *p;
   int i;
@@ -52,7 +53,7 @@ uname (struct utsname *uts)
       i = i + 1;
     }
   info[0] = 276;
-  if (RtlGetVersion (info) != 0)
+  if (__ntcall1 (RtlGetVersion, info) != 0)
     return -1;
 
   p = uts;

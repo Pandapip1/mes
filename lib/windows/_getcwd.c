@@ -16,6 +16,7 @@
  * You should have received a copy of the GNU General Public License
  * along with GNU Mes.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include <windows/ntcall.h>
 #include <windows/ntdll.h>
 #include <mes/lib.h>
 
@@ -26,7 +27,7 @@
 char *
 _getcwd (char *buffer, size_t size)
 {
-  int (*RtlGetCurrentDirectory_U) (int, int);
+  int RtlGetCurrentDirectory_U;
   char *w;
   int room;
   int bytes;
@@ -37,8 +38,7 @@ _getcwd (char *buffer, size_t size)
   room = 2 * size;              /* not in the argument list: see ntdll.c */
 
   RtlGetCurrentDirectory_U = __ntdll_resolve ("RtlGetCurrentDirectory_U");
-  /* forwards: RtlGetCurrentDirectory_U (room, w) */
-  bytes = RtlGetCurrentDirectory_U (w, room);
+  bytes = __ntcall2 (RtlGetCurrentDirectory_U, room, w);
   if (bytes == 0)
     return 0;
 

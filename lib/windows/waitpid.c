@@ -16,6 +16,7 @@
  * You should have received a copy of the GNU General Public License
  * along with GNU Mes.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include <windows/ntcall.h>
 #include <windows/ntdll.h>
 #include <mes/lib.h>
 
@@ -34,8 +35,8 @@
 pid_t
 waitpid (pid_t pid, int *status_ptr, int options)
 {
-  int (*NtWaitForSingleObject) (int, int, int);
-  int (*NtQueryInformationProcess) (int, int, int, int, int);
+  int NtWaitForSingleObject;
+  int NtQueryInformationProcess;
   int *basic;
   int i;
   int rc;
@@ -44,8 +45,7 @@ waitpid (pid_t pid, int *status_ptr, int options)
     return -1;
 
   NtWaitForSingleObject = __ntdll_resolve ("NtWaitForSingleObject");
-  /* forwards: NtWaitForSingleObject (pid, FALSE, 0) -- 0 is no timeout */
-  rc = NtWaitForSingleObject (0, 0, pid);
+  rc = __ntcall3 (NtWaitForSingleObject, pid, 0, 0);
   if (rc < 0)
     return -1;
 
@@ -59,9 +59,7 @@ waitpid (pid_t pid, int *status_ptr, int options)
     }
 
   NtQueryInformationProcess = __ntdll_resolve ("NtQueryInformationProcess");
-  /* forwards: NtQueryInformationProcess (pid, ProcessBasicInformation, basic,
-   *                                      24, 0) */
-  rc = NtQueryInformationProcess (0, 24, basic, 0, pid);
+  rc = __ntcall5 (NtQueryInformationProcess, pid, 0, basic, 24, 0);
   if (rc != 0)
     return -1;
 

@@ -16,6 +16,7 @@
  * You should have received a copy of the GNU General Public License
  * along with GNU Mes.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include <windows/ntcall.h>
 #include <windows/ntdll.h>
 #include <mes/lib.h>
 
@@ -36,7 +37,7 @@
 int
 access (char const *file_name, int how)
 {
-  int (*NtQueryAttributesFile) (int, int);
+  int NtQueryAttributesFile;
   int *oa;
   int *basic;
   int i;
@@ -55,8 +56,7 @@ access (char const *file_name, int how)
     }
 
   NtQueryAttributesFile = __ntdll_resolve ("NtQueryAttributesFile");
-  /* forwards: NtQueryAttributesFile (oa, basic) */
-  if (NtQueryAttributesFile (basic, oa) != 0)
+  if (__ntcall2 (NtQueryAttributesFile, oa, basic) != 0)
     return -1;
 
   i = basic[8];                 /* FileAttributes */

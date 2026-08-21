@@ -16,6 +16,7 @@
  * You should have received a copy of the GNU General Public License
  * along with GNU Mes.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include <windows/ntcall.h>
 #include <windows/ntdll.h>
 #include <mes/lib.h>
 
@@ -37,7 +38,7 @@
 int
 ioctl3 (int filedes, size_t command, long data)
 {
-  int (*NtQueryVolumeInformationFile) (int, int, int, int, int);
+  int NtQueryVolumeInformationFile;
   int *iosb;
   int *info;
   int handle;
@@ -56,9 +57,7 @@ ioctl3 (int filedes, size_t command, long data)
   handle = __handle (filedes);
 
   NtQueryVolumeInformationFile = __ntdll_resolve ("NtQueryVolumeInformationFile");
-  /* forwards: NtQueryVolumeInformationFile (handle, iosb, info, 8,
-   *                                         FileFsDeviceInformation) */
-  rc = NtQueryVolumeInformationFile (4, 8, info, iosb, handle);
+  rc = __ntcall5 (NtQueryVolumeInformationFile, handle, iosb, info, 8, 4);
   if (rc != 0)
     return -1;
 

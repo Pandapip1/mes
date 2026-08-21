@@ -16,6 +16,7 @@
  * You should have received a copy of the GNU General Public License
  * along with GNU Mes.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include <windows/ntcall.h>
 #include <windows/ntdll.h>
 #include <mes/lib.h>
 
@@ -33,7 +34,7 @@
 int
 _open3 (char const *file_name, int flags, int mask)
 {
-  int (*NtCreateFile) (int, int, int, int, int, int, int, int, int, int, int);
+  int NtCreateFile;
   int *oa;
   int *iosb;
   int *handle;
@@ -67,11 +68,8 @@ _open3 (char const *file_name, int flags, int mask)
     }
 
   NtCreateFile = __ntdll_resolve ("NtCreateFile");
-  /* forwards: NtCreateFile (handle, access, oa, iosb, 0,
-   *                         FILE_ATTRIBUTE_NORMAL, FILE_SHARE_READ|WRITE,
-   *                         disposition, FILE_SYNCHRONOUS_IO_NONALERT, 0, 0) */
-  rc = NtCreateFile (0, 0, 0x20, disposition, 3, 0x80, 0, iosb, oa, access,
-                     handle);
+  rc = __ntcall11 (NtCreateFile, handle, access, oa, iosb, 0, 0x80, 3,
+                   disposition, 0x20, 0, 0);
   if (rc != 0)
     return -1;
 

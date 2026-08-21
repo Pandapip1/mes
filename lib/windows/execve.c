@@ -16,6 +16,7 @@
  * You should have received a copy of the GNU General Public License
  * along with GNU Mes.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include <windows/ntcall.h>
 #include <windows/ntdll.h>
 #include <mes/lib.h>
 
@@ -232,7 +233,7 @@ __envblock (char **env)
 int
 __inheritable (int handle)
 {
-  int (*NtDuplicateObject) (int, int, int, int, int, int, int);
+  int NtDuplicateObject;
   int *out;
 
   if (handle == 0)
@@ -241,9 +242,7 @@ __inheritable (int handle)
   out = malloc (4);
   out[0] = 0;
   NtDuplicateObject = __ntdll_resolve ("NtDuplicateObject");
-  /* forwards: NtDuplicateObject (-1, handle, -1, out, 0, OBJ_INHERIT,
-   *                              DUPLICATE_SAME_ACCESS) */
-  if (NtDuplicateObject (2, 2, 0, out, -1, handle, -1) != 0)
+  if (__ntcall7 (NtDuplicateObject, -1, handle, -1, out, 0, 2, 2) != 0)
     return handle;
   return out[0];
 }
@@ -253,11 +252,9 @@ __inheritable (int handle)
 int
 __spawn (char const *file_name, char **argv, char **env)
 {
-  int (*RtlCreateProcessParameters) (int, int, int, int, int, int, int, int,
-                                     int, int);
-  int (*RtlCreateUserProcess) (int, int, int, int, int, int, int, int, int,
-                               int);
-  int (*NtResumeThread) (int, int);
+  int RtlCreateProcessParameters;
+  int RtlCreateUserProcess;
+  int NtResumeThread;
   int *oa;
   int *ntpath;
   int *image;
@@ -286,9 +283,8 @@ __spawn (char const *file_name, char **argv, char **env)
   out[0] = 0;
 
   RtlCreateProcessParameters = __ntdll_resolve ("RtlCreateProcessParameters");
-  /* forwards: RtlCreateProcessParameters (out, image, 0, 0, cmd, block,
-   *                                       0, 0, 0, 0) */
-  rc = RtlCreateProcessParameters (0, 0, 0, 0, block, cmd, 0, 0, image, out);
+  rc = __ntcall10 (RtlCreateProcessParameters, out, image, 0, 0, cmd, block,
+                   0, 0, 0, 0);
   if (rc != 0)
     return -1;
   params = out[0];
@@ -343,16 +339,14 @@ __spawn (char const *file_name, char **argv, char **env)
   info[0] = 68;
 
   RtlCreateUserProcess = __ntdll_resolve ("RtlCreateUserProcess");
-  /* forwards: RtlCreateUserProcess (ntpath, OBJ_CASE_INSENSITIVE, params,
-   *                                 0, 0, 0, TRUE, 0, 0, info) */
-  rc = RtlCreateUserProcess (info, 0, 0, 1, 0, 0, 0, params, 0x40, ntpath);
+  rc = __ntcall10 (RtlCreateUserProcess, ntpath, 0x40, params, 0, 0, 0, 1, 0,
+                   0, info);
   if (rc != 0)
     return -1;
 
   NtResumeThread = __ntdll_resolve ("NtResumeThread");
   thread = info[2];
-  /* forwards: NtResumeThread (thread, 0) */
-  NtResumeThread (0, thread);
+  __ntcall2 (NtResumeThread, thread, 0);
 
   return info[1];
 }
