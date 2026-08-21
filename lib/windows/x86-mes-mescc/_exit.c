@@ -20,7 +20,7 @@
 #include <windows/ntdll.h>
 #include <mes/lib.h>
 
-/* Stands in for lib/linux/x86-mes-m2/_exit.c, which is three instructions
+/* Stands in for lib/linux/x86-mes-mescc/_exit.c, which is three instructions
  * around int $0x80.  NtTerminateProcess takes the process to end and the
  * status to end it with; -1 is the pseudo-handle meaning this one. */
 

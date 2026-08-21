@@ -20,7 +20,7 @@
 #include <windows/ntdll.h>
 #include <mes/lib.h>
 
-/* Stands in for lib/linux/x86-mes-m2/_write.c.
+/* Stands in for lib/linux/x86-mes-mescc/_write.c.
  *
  * NtWriteFile takes nine arguments, of which this uses three: the handle, the
  * buffer and the length.  The Event, ApcRoutine and ApcContext are for
