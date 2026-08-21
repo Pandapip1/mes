@@ -296,6 +296,7 @@ lib/stub/fstat.c
 lib/stub/fsync.c
 lib/windows/_getcwd.c
 lib/stub/getdents.c
+lib/windows/$mes_cpu-mes-$compiler/filetime.c
 lib/windows/gettimeofday.c
 lib/windows/ioctl3.c
 lib/stub/link.c

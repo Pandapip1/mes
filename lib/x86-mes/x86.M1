@@ -223,6 +223,30 @@ DEFINE xor____%ebx,%ebx 31db
 DEFINE xor____%edx,%edx 31d2
 
 
+# For lib/windows/x86-mes-mescc/gettimeofday.c: reading and writing a struct
+# through esi, and the two divides that turn a 64-bit count of 100-nanosecond
+# units into seconds and microseconds.  A 64-bit quantity is what Windows
+# reports a time as, and neither MesCC nor M2-Planet has a type for one, so
+# the arithmetic is written out.
+#
+# These are the same instructions lib/windows/x86-mes/defs.M1 names for
+# M2-Planet, under that assembler's own spelling.  They are here rather than
+# in a file beside that one because MesCC assembles each translation unit on
+# its own, with this macro file and nothing else: a DEFINE next to the source
+# would never be seen.
+DEFINE div___%ecx f7f1
+DEFINE pop____%esi 5e
+DEFINE push___%esi 56
+DEFINE mov____$i32,%ecx b9
+DEFINE mov____$i32,%edx ba
+DEFINE mov____(%esi),%eax 8b06
+DEFINE mov____0x8(%esi),%edx 8b56
+DEFINE mov____%eax,(%esi) 8906
+DEFINE mov____%eax,0x8(%esi) 8946
+DEFINE sbb____$i32,%edx 81da
+DEFINE sub____$i32,%eax 2d
+
+
 # Enough for all of Mes + Mes C Libray when using all registers, i.e.,
 # non-reduced instruction set
 #DEFINE add____$i32,%ecx 81c1
@@ -309,7 +333,6 @@ DEFINE xor____%edx,%edx 31d2
 #DEFINE or_____(%edx),%eax 0b02
 #DEFINE pop____%ecx 59
 #DEFINE push___%ecx 51
-#DEFINE push___%esi 56
 #DEFINE shl____$i8,%ecx c1e1
 #DEFINE shl____$i8,%edx c1e2
 #DEFINE shl____%cl,%ecx d3e1
