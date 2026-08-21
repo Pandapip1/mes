@@ -121,7 +121,7 @@ reset_reader:
       c = reader_read_line_comment (c);
       goto reset_reader;
     }
-  if ((c == ' ') || (c == '\t') || (c == '\n') || (c == '\f'))
+  if (isspace (c) != 0)
     {
       c = readchar ();
       goto reset_reader;
