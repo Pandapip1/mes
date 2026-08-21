@@ -1,0 +1,63 @@
+### GNU Mes --- Maxwell Equations of Software
+### Copyright © 2026 Gavin John
+###
+### This file is part of GNU Mes.
+###
+### GNU Mes is free software; you can redistribute it and/or modify it
+### under the terms of the GNU General Public License as published by
+### the Free Software Foundation; either version 3 of the License, or (at
+### your option) any later version.
+###
+### GNU Mes is distributed in the hope that it will be useful, but
+### WITHOUT ANY WARRANTY; without even the implied warranty of
+### MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+### GNU General Public License for more details.
+###
+### You should have received a copy of the GNU General Public License
+### along with GNU Mes.  If not, see <http://www.gnu.org/licenses/>.
+
+### Commentary:
+
+# The mnemonics lib/windows/*.c's asm() escapes use that lib/x86-mes/x86.M1 --
+# the macro table MesCC assembles with, arch-get-m1-macros -- does not carry.
+# MesCC picks this up through kernel-search, per kernel and per architecture.
+#
+# The gap only exists for MesCC.  M2-Planet compiles this whole port in one
+# invocation, alongside lib/m2/x86/x86_defs.M1 and crt1.M1, and a DEFINE is
+# global to an assembly, so every mnemonic below is already in scope there.
+# MesCC compiles one translation unit at a time, so each file has to carry
+# what it asks for on its own command line.
+#
+# Every line is copied byte-for-byte from the file named above it, and the
+# list is exactly what lib/windows/ actually uses: derived by reading the
+# asm() escapes rather than assembled by hand, so nothing here is unused and
+# nothing used is missing.
+#
+# An undefined mnemonic is not an error M1 reports at the point of use -- it
+# passes the token through, hex2 makes no sense of it, and the instruction is
+# silently dropped.  What it does report, further on, is "Received invalid
+# other".
+
+### From lib/m2/x86/x86_defs.M1:
+DEFINE add_eax, 05
+DEFINE add_eax,ebx 01D8
+DEFINE mov_eax, B8
+DEFINE mov_eax,[eax] 8B00
+DEFINE mov_eax,edx 89D0
+DEFINE mov_ebx,eax 89C3
+DEFINE mov_ecx, B9
+DEFINE mov_edx, BA
+DEFINE pop_eax 58
+DEFINE push_eax 50
+DEFINE sal_eax, C1E0
+DEFINE sub_eax, 2d
+
+### From lib/windows/x86-mes-m2/crt1.M1:
+DEFINE div_ecx F7F1
+DEFINE mov_[esi+BYTE],eax 8946
+DEFINE mov_[esi],eax 8906
+DEFINE mov_eax,[eax+BYTE] 8B40
+DEFINE mov_eax,[esi] 8B06
+DEFINE mov_eax,[fs:DWORD] 64A1
+DEFINE mov_edx,[esi+BYTE] 8B56
+DEFINE sbb_edx, 81DA

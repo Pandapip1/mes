@@ -191,10 +191,18 @@
                                (else (replace-suffix M1-file-name ".o"))))
          (verbose? (count-opt options 'verbose))
          (M1 (or (getenv "M1") "M1"))
+         ;; A kernel may need a handful of asm() mnemonics that
+         ;; arch-get-m1-macros' file does not carry -- Windows needs seven, to
+         ;; reach the PEB and ntdll; see x86-defines.M1's own comment.  The
+         ;; file is optional: no kernel but Windows ships one, and a kernel
+         ;; without one assembles exactly as before.
+         (kernel-macros-file (kernel-search options (arch-get-kernel-macros options)))
+         (kernel-macros (if kernel-macros-file (list "-f" kernel-macros-file) '()))
          (command `(,M1
                     "--little-endian"
                     ,@(arch-get-architecture options)
                     "-f" ,(arch-find options (arch-get-m1-macros options))
+                    ,@kernel-macros
                     ,@(append-map (cut list "-f" <>) M1-files)
                     "-o" ,hex2-file-name)))
     (when (and verbose? (> verbose? 1))
@@ -271,7 +279,7 @@
 (define (find-library options ext o)
   (arch-find options (string-append "lib" o ext)))
 
-(define* (arch-find options file-name #:key kernel)
+(define* (arch-search options file-name #:key kernel)
   (let* ((srcdest (or (getenv "srcdest") ""))
          (srcdir-lib (string-append srcdest "lib"))
          (srcdir-mescc-lib (string-append srcdest "mescc-lib"))
@@ -295,16 +303,28 @@
          (verbose? (count-opt options 'verbose)))
     (let ((file (search-path path arch-file-name)))
       (when (and verbose? (> verbose? 1))
-        (format (current-error-port) "arch-find=~s\n" arch-file-name)
-        (format (current-error-port) "     path=~s\n" path)
+        (format (current-error-port) "arch-search=~s\n" arch-file-name)
+        (format (current-error-port) "       path=~s\n" path)
         (format (current-error-port) "  => ~s\n" file))
-      (or file
-          (error (format #f "mescc: file not found: ~s" arch-file-name))))))
+      file)))
+
+;; The same lookup, for a file that has to be there.
+(define* (arch-find options file-name #:key kernel)
+  (or (arch-search options file-name #:kernel kernel)
+      (error (format #f "mescc: file not found: ~s"
+                     (let* ((arch (string-append (arch-get options) "-mes"))
+                            (arch-file-name (string-append arch "/" file-name)))
+                       (if kernel (string-append kernel "/" arch-file-name)
+                           arch-file-name))))))
 
 (define (kernel-find options file-name)
   (let ((kernel (option-ref options 'kernel "linux")))
-    (or (arch-find options file-name #:kernel kernel)
+    (or (arch-search options file-name #:kernel kernel)
         (arch-find options file-name))))
+
+;; For a file a kernel MAY carry: #f rather than an error when it does not.
+(define (kernel-search options file-name)
+  (arch-search options file-name #:kernel (option-ref options 'kernel "linux")))
 
 (define (assert-system* . args)
   (let ((status (apply system* args)))
@@ -367,6 +387,9 @@
     (cond ((member machine '("64" "riscv64" "x86_64")) "64")
           ((member machine '("arm")) "32")
           (else "32"))))
+
+(define (arch-get-kernel-macros options)
+  (string-append (arch-get options) "-defines.M1"))
 
 (define (arch-get-m1-macros options)
   (let ((arch (arch-get options)))
