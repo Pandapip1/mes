@@ -252,6 +252,7 @@ mes_builtins (struct scm *a)            /*:((internal)) */
   a = init_builtin (builtin_type, "chmod", 2, &chmod_, a);
   a = init_builtin (builtin_type, "isatty?", 1, &isatty_p, a);
   a = init_builtin (builtin_type, "primitive-fork", 0, &primitive_fork, a);
+  a = init_builtin (builtin_type, "core:spawn", 2, &spawn_, a);
   a = init_builtin (builtin_type, "primitive-exit", 1, &primitive_exit, a);
   a = init_builtin (builtin_type, "core:execl", 2, &execl_, a);
   a = init_builtin (builtin_type, "core:execle", 3, &execle_, a);

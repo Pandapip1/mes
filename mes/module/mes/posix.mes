@@ -59,6 +59,19 @@
                         (search-path (string-split (getenv "PATH") #\:) file-name))))
     (apply execl executable args)))
 
+;; Start a program, wait for it, and answer with the status.
+;;
+;; Wherever there is a fork this is the three calls a shell has always made:
+;; fork, exec in the child, wait in the parent, with the child putting the
+;; current ports on 1 and 2 first so a redirected mes redirects what it runs.
+;;
+;; Windows has no fork -- see lib/windows/fork.c for how far it can be pushed
+;; and what that costs -- and its primitive-fork answers -1 rather than
+;; pretending.  So -1 is not an error here but the other case: spawn is the
+;; one call such a system has, and it starts the program and waits in one
+;; step.  It takes this process's own environment, the way execv does and
+;; for the same reason, and the child inherits this process's handles, which
+;; is where the two dup2 calls above went.
 (define (system* file-name . args)
   (let ((pid (primitive-fork)))
     (cond ((zero? pid)
@@ -71,7 +84,11 @@
                         (not (= err 2)))
                (dup2 err 2))
              (exit (apply execlp file-name file-name args))))
-          ((= -1 pid) (error "fork failed:" file-name))
+          ((= -1 pid)
+           (let ((executable (if (string-index file-name #\/) file-name
+                                 (search-path (string-split (getenv "PATH") #\:)
+                                              file-name))))
+             (core:spawn executable (cons executable args))))
           (else (let ((pid+status (waitpid 0)))
                   (cdr pid+status))))))
 

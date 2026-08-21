@@ -76,6 +76,11 @@ int execve (char const *file, char *const argv[], char *const env[]);
 int execvp (char const *file, char *const argv[]);
 int fork (void);
 int fsync (int filedes);
+/* Not POSIX: start a program, wait for it, answer with the status waitpid
+   would have reported.  On a system with fork it is those three calls; on one
+   without -- Windows -- it is the one call that system has.  See
+   lib/posix/spawn.c and lib/windows/spawn.c. */
+int spawn (char const *file_name, char *const argv[]);
 char *getcwd (char *buf, size_t size);
 uid_t getuid (void);
 gid_t getgid (void);

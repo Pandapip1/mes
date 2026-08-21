@@ -239,6 +239,7 @@ lib/linux/dup2.c
 lib/linux/execve.c
 lib/linux/fcntl.c
 lib/linux/fork.c
+lib/posix/spawn.c
 lib/linux/fstat.c
 lib/linux/fsync.c
 lib/linux/_getcwd.c
@@ -308,6 +309,7 @@ lib/windows/_read.c
 lib/stub/readdir.c
 lib/stub/rename.c
 lib/stub/rmdir.c
+lib/windows/spawn.c
 lib/stub/stat.c
 lib/stub/symlink.c
 lib/windows/time.c

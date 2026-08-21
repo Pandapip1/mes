@@ -443,6 +443,45 @@ execle_ (struct scm *file_name, struct scm *args, struct scm *env)
   return make_number (execve (c_file_name, c_argv, c_env));
 }
 
+/* Start a program and wait for it, for a system that cannot fork.
+ *
+ * mes/module/mes/posix.mes builds system* out of primitive-fork, execlp and
+ * waitpid, which is how a shell has always done it and how it still does it
+ * wherever fork works.  Windows has no fork worth the name -- see
+ * lib/windows/fork.c for how far it can be pushed and what it costs -- so
+ * system* falls back to this when primitive-fork answers -1.
+ *
+ * The marshalling is execle_'s, and it is repeated rather than shared because
+ * the two differ in the one line that matters and MesCC has no way to share
+ * the rest.
+ */
+struct scm *
+spawn_ (struct scm *file_name, struct scm *args) /*:((name . "core:spawn")) */
+{
+  char *c_file_name = cell_bytes (file_name->string);
+
+  char **c_argv = __execl_c_argv;
+  int i = 0;
+
+  if (length__ (args) > 1000)
+    error (cell_symbol_system_error,
+           cons (make_string0 ("too many arguments"),
+                 cons (file_name, args)));
+
+  struct scm *arg;
+  while (args != cell_nil)
+    {
+      assert_msg (args->car->type == TSTRING, "args->car->type == TSTRING");
+      arg = args->car;
+      c_argv[i] = cell_bytes (arg->string);
+      i = i + 1;
+      args = args->cdr;
+    }
+  c_argv[i] = 0;
+
+  return make_number (spawn (c_file_name, c_argv));
+}
+
 struct scm *
 waitpid_ (struct scm *pid, struct scm *options)
 {

@@ -138,6 +138,7 @@ struct scm *set_current_error_port (struct scm *port);
 struct scm *chmod_ (struct scm *file_name, struct scm *mode);
 struct scm *isatty_p (struct scm *port);
 struct scm *primitive_fork ();
+struct scm *spawn_ (struct scm *file_name, struct scm *args);
 struct scm *primitive_exit (struct scm *status);
 struct scm *execl_ (struct scm *file_name, struct scm *args);
 struct scm *execle_ (struct scm *file_name, struct scm *args, struct scm *env);
