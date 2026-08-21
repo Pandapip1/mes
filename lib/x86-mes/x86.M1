@@ -112,6 +112,7 @@ DEFINE mov____%edx,%eax 89d0
 DEFINE mov____%edx,%ebx 89d3
 DEFINE mov____%esp,%ebp 89e5
 DEFINE mov____%edi,%esp 89fc
+DEFINE mov____%fs:0x32,%eax 64a1
 DEFINE mov____%esp,%edi 89e7
 DEFINE mov____(%eax),%cl 8a08
 DEFINE mov____(%eax),%cx 668b08
