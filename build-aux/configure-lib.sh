@@ -455,9 +455,11 @@ lib/string/bcopy.c
 lib/string/bzero.c
 lib/string/index.c
 lib/string/rindex.c
+lib/string/strcasecmp.c
 lib/string/strcspn.c
 lib/string/strdup.c
 lib/string/strerror.c
+lib/string/strncasecmp.c
 lib/string/strncat.c
 lib/string/strpbrk.c
 lib/string/strspn.c
@@ -521,6 +523,12 @@ lib/linux/settimer.c
 lib/linux/setuid.c
 lib/linux/signal.c
 lib/linux/sigprogmask.c
+"
+fi
+
+if test $mes_kernel = windows; then
+    libc_gnu_SOURCES="$libc_gnu_SOURCES
+lib/stub/settimer.c
 "
 fi
 

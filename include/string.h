@@ -46,6 +46,7 @@ size_t strcspn (char const *string, char const *stopset);
 size_t strlen (char const *);
 char *strncat (char *to, char const *from, size_t size);
 char *strncpy (char *to, char const *from, size_t size);
+int strncasecmp (char const *s1, char const *s2, size_t n);
 int strncmp (char const *, char const *, size_t);
 char *strpbrk (char const *string, char const *stopset);
 char *strrchr (char const *s, int c);

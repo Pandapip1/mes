@@ -22,7 +22,13 @@
 
    A stub in the sense lib/stub/ means it: it is here so that a program
    naming it links, and it says so under __mes_debug rather than pretending
-   to have done something. */
+   to have done something.
+
+   setitimer, not settimer: the file is named after lib/linux/settimer.c,
+   which defines setitimer the way <sys/time.h> declares it and lib/posix/
+   alarm.c calls it.  Under the shorter name this stub satisfied nothing --
+   any kernel that reached for it got an undefined setitimer instead, which
+   is what a kernel without lib/linux/settimer.c does reach for. */
 
 #include <mes/lib.h>
 #include <errno.h>
@@ -30,11 +36,11 @@
 #include <sys/types.h>
 
 int
-settimer (int which, struct itimerval const *new, struct itimerval *old)
+setitimer (int which, struct itimerval const *new, struct itimerval *old)
 {
   static int stub = 0;
   if (__mes_debug () && !stub)
-    eputs ("settimer stub\n");
+    eputs ("setitimer stub\n");
   stub = 1;
   errno = 0;
   return -1;
