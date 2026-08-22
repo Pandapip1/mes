@@ -352,12 +352,12 @@ __spawn (char const *file_name, char **argv, char **env)
 }
 
 int
-execve (char const *file_name, char **argv, char **env)
+execve (char const *file_name, char *const argv[], char *const env[])
 {
   int *status;
   int pid;
 
-  pid = __spawn (file_name, argv, env);
+  pid = __spawn (file_name, (char **) argv, (char **) env);
   if (pid <= 0)
     return -1;
 
