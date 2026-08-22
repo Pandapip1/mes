@@ -90,6 +90,8 @@ gc_init ()
   long alloc_bytes = arena_bytes + (STACK_SIZE * sizeof (struct scm));
 
   g_arena = malloc (alloc_bytes);
+  if (g_arena == 0)
+    assert_msg (0, "gc_init: out of memory");
   g_cells = cast_charp_to_scmp (g_arena);
   g_stack_array = cast_charp_to_scmpp (g_arena + arena_bytes);
 
