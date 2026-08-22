@@ -19,14 +19,18 @@
  */
 
 #include <signal.h>
+#include <stdlib.h>
 
 void
 abort (void)
 {
   if (raise (SIGABRT) < 0) /* could not raise SIGABRT */
-    {
-      /* Fail in any way possible */
-      unsigned char* x = (unsigned char*) 0;
-      *x = 2;
-    }
+    /* Nothing on this system delivers the signal (Windows has no kill; see
+       lib/stub/kill.c), so there is nothing to fail into by leaving SIGABRT
+       undelivered -- exit the way a real SIGABRT death would look to
+       whatever is watching the exit code, rather than the wild pointer
+       write this used to be, which only ever produced an unreadable
+       platform-specific crash instead of a diagnosable one. 128 + SIGABRT
+       is the shell convention for "killed by this signal". */
+    _exit (128 + SIGABRT);
 }

@@ -42,11 +42,12 @@ abort_ ()                   /*:((name . "abort")) */
   if (g_debug > 0)
     eputs ("abort!\n");
   if (__raise (SIGABRT) < 0) /* could not raise SIGABRT */
-    {
-      /* Fail in any way possible */
-      char* x = 0;
-      x[0] = 2;
-    }
+    /* No signal delivery to fail into on this port (Windows has no kill;
+       see lib/stub/kill.c) -- exit the way a real SIGABRT death would look
+       to whatever is watching the exit code, rather than segfaulting into
+       an opaque crash that swallows whatever was already printed above.
+       128 + SIGABRT is the shell convention for "killed by this signal". */
+    _exit (128 + SIGABRT);
   return cell_unspecified;
 }
 
