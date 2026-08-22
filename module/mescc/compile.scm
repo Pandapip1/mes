@@ -310,6 +310,17 @@
     ((,name . ,type) (->rank type))
     (_ (error "field:pointer not supported:" o))))
 
+;; The text of a #pragma, with every space taken out, so that the several
+;; ways of writing one -- `pack(push, 1)', `pack (push,1)' -- compare as the
+;; single thing they say.  nyacc hands it over as a one-element list holding
+;; everything after the directive.
+(define (pragma-text o)
+  (let ((s (if (pair? o) (car o) o)))
+    (if (string? s)
+        (list->string (filter (lambda (c) (not (char-whitespace? c)))
+                              (string->list s)))
+        (format #f "~s" o))))
+
 (define (field:size o info)
   (pmatch o
     ((struct . ,type) (apply + (map (cut field:size <> info) (struct->fields type))))
@@ -1760,6 +1771,40 @@
 
       ((cpp-stmt (define (name ,name) (repl ,value)))
        info)
+
+      ;; #pragma pack(1), and nothing else.
+      ;;
+      ;; This compiler lays every struct out byte-packed: field-offset sums
+      ;; the sizes of the fields before one and adds nothing, and a struct's
+      ;; size is the plain sum of its fields.  So an alignment of 1 is not
+      ;; something to ignore, it is what already happens, and MesCC can say
+      ;; it supports that pragma rather than quietly dropping it.  pop and
+      ;; an empty pack() go back to the default alignment, which is that
+      ;; same 1.  What asks is TinyCC's tccpe.c, which wraps its PE header
+      ;; structs in `#pragma pack (push, 1)' -- and a Windows-targeting tcc
+      ;; has to be compilable here, there being nothing below MesCC that
+      ;; emits an executable at all.
+      ;;
+      ;; Anything else stops the compile.  A pragma is only ignorable when
+      ;; ignoring it changes nothing, and an alignment this cannot produce
+      ;; would silently lay a struct out differently from what the program
+      ;; asked for -- which, for structs written to a file as they stand
+      ;; the way PE headers are, means a wrong file and no diagnostic.
+      ;; Better to be told what was not honoured.
+      ;;
+      ;; Byte-packing being the default here is also why this stays right
+      ;; on a wider target.  tccpe.c's own 64-bit shape, ADDR3264 as
+      ;; ULONGLONG, wants IMAGE_OPTIONAL_HEADER at 244 bytes where natural
+      ;; alignment would give 248, and the pe_header embedding it at 396
+      ;; against 400: the packed number is the one the format calls for,
+      ;; and the packed number is the only one this compiler knows how to
+      ;; produce.  It is a compiler that aligns, not this one, that needs
+      ;; the pragma honoured rather than merely accepted.
+      ((pragma . ,rest)
+       (let ((text (pragma-text rest)))
+         (if (member text '("pack(1)" "pack(push,1)" "pack(pop)" "pack()"))
+             info
+             (error (string-append "pragma not supported: " text)))))
 
       ((cast (type-name (decl-spec-list (type-spec (void)))) _)
        info)
