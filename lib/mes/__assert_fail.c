@@ -20,29 +20,48 @@
 
 #include <mes/lib.h>
 #include <assert.h>
+#include <stdlib.h>
+#include <signal.h>
 
+/* Written as two nested ifs rather than `if (file && *file)`, because
+ * M2-Planet does not short-circuit &&: it evaluates *file unconditionally
+ * and ANDs the two results together, so the guard meant to skip a null
+ * file dereferenced it instead -- every assertion failure that did not
+ * pass a file name (assert_msg, the common case, always passes one as
+ * null) crashed reporting itself. Measured: this is what was silently
+ * eating the message and backtrace an unhandled Scheme exception had
+ * already printed, on the one port where the second crash's own fallback
+ * (see below) has no readable exit code and no debugger attached to see
+ * it happen. */
 void
 __assert_fail (char const *msg, char const *file, unsigned line,
                char const *function)
 {
-  if (file && *file)
-    {
-      eputs (file);
-      eputs (":");
-    }
+  if (file)
+    if (*file)
+      {
+        eputs (file);
+        eputs (":");
+      }
   if (line)
     {
       eputs (itoa (line));
       eputs (":");
     }
-  if (function && *function)
-    {
-      eputs (function);
-      eputs (":");
-    }
+  if (function)
+    if (*function)
+      {
+        eputs (function);
+        eputs (":");
+      }
   eputs ("assert fail: ");
   eputs (msg);
   eputs ("\n");
-  char *fail = 0;
-  fail[0] = 0;
+  /* Same fallback as abort() (lib/stdlib/abort.c) and the "abort" primitive
+   * (src/posix.c's abort_) use, and for the same reason: forcing a crash
+   * with an undefined write to address 0 loses whatever was just printed
+   * above on any port where that write's failure mode is a debugger dump
+   * rather than a core file next to a resumable shell. _exit with a real
+   * status code preserves it. */
+  _exit (134);
 }
