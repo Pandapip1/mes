@@ -2131,6 +2131,30 @@
   (lambda (o)
     (cons (car o) (set-field (cdr o) (global:function) function))))
 
+;; The name a typedef's declarator introduces, and the type it gives that
+;; name, given the type the declaration as a whole says.  These are the four
+;; declarator shapes the single-name typedef cases in decl->info spell out
+;; one by one; here they are wanted one at a time, for a typedef that
+;; introduces several names at once.
+(define (typedef-declr-name o)
+  (pmatch o
+    ((ident ,name) name)
+    ((ary-declr (ident ,name) ,count) name)
+    ((array-of (ident ,name) ,count) name)
+    ((ptr-declr ,pointer (ident ,name)) name)
+    (_ #f)))
+
+(define (typedef-declr-type base o info)
+  (pmatch o
+    ((ident ,name) base)
+    ((ary-declr (ident ,name) ,count)
+     (make-c-array base (expr->number info count)))
+    ((array-of (ident ,name) ,count)
+     (make-c-array base (expr->number info count)))
+    ((ptr-declr ,pointer (ident ,name))
+     (rank+= base (pointer->rank pointer)))
+    (_ #f)))
+
 (define (decl->info info o)
   (pmatch o
     (((decl-spec-list (type-spec ,type)) (init-declr-list . ,inits))
@@ -2166,6 +2190,38 @@
             (rank (pointer->rank pointer))
             (type (rank+= type rank)))
        (clone info #:types (acons name type (.types info)))))
+    ;; `typedef struct {...} A, *PA;' -- one type, several names for it.
+    ;;
+    ;; Each typedef case above takes an init-declr-list holding exactly one
+    ;; declarator, so a typedef that introduces more than one name matched
+    ;; none of them and fell through to the storage-class case below, which
+    ;; makes variables rather than type names.  Every name such a typedef
+    ;; declared was therefore unknown, and a later use of one resolved to #f
+    ;; -- reported, if at all, from wherever that #f was finally asked for a
+    ;; size, rather than at the typedef.  `typedef struct {...} A, *PA;' is
+    ;; how every Windows header names a structure and a pointer to it, and
+    ;; TinyCC's tccpe.c is written that way throughout.
+    ;;
+    ;; Only for more than one declarator, which is the whole of what was
+    ;; broken.  A single-declarator typedef this does not spell out -- a
+    ;; function pointer, `typedef int (*cmp_t) (void const *, void const *)'
+    ;; -- has always fallen past all of these to the storage-class case, and
+    ;; must go on doing so rather than be caught here and refused.
+    (((decl-spec-list (stor-spec (typedef)) (type-spec ,type)) (init-declr-list . ,inits))
+     (guard (pair? (cdr inits)))
+     (let* ((declrs (map cadr inits))
+            (name (and (pair? declrs) (typedef-declr-name (car declrs))))
+            (info (type->info type name info))
+            (base (ast->type type info)))
+       (fold
+        (lambda (declr info)
+          (let ((name (typedef-declr-name declr))
+                (type (typedef-declr-type base declr info)))
+            (if (and name type)
+                (clone info #:types (acons name type (.types info)))
+                (error "typedef declarator not supported:" declr))))
+        info declrs)))
+
     (((decl-spec-list (stor-spec (,store)) (type-spec ,type)) (init-declr-list . ,inits))
      (let* ((info (type->info type #f info))
             (type (ast->type type info))
