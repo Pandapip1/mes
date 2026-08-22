@@ -31,12 +31,15 @@ void *
 realloc (void *ptr, size_t size)
 {
   void *new = malloc (size);
+  long *hdr;
   long old_size;
   size_t copy_size;
 
   if (ptr != 0 && new != 0)
     {
-      old_size = *(((long *) ptr) - 1);
+      hdr = ptr;
+      hdr = hdr - 1;
+      old_size = *hdr;
       copy_size = size;
       if (old_size < size)
         copy_size = old_size;
