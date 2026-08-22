@@ -27,7 +27,16 @@ __buffered_read_init (int filedes)
 {
 }
 
+/* Zero, and not merely falling off the end: both callers act on what this
+ * says.  write and lseek ask how far a buffered read has already carried the
+ * file position past where the caller believes it is, and seek back by that
+ * much before doing anything -- so a value left in the return register by
+ * whatever was called last becomes a seek to a place nothing meant, and every
+ * write from then on lands on top of what came before it.  Where reads are
+ * not buffered at all, which is the whole reason this stub stands in, the
+ * honest answer is none. */
 size_t
 __buffered_read_clear (int filedes)
 {
+  return 0;
 }
