@@ -21,13 +21,26 @@
 #include <stdlib.h>
 #include <string.h>
 
+/* lib/linux/malloc.c keeps one word before every pointer it returns,
+ * holding that allocation's own real size -- read here to copy only
+ * what the old block actually holds. Copying `size` (the new,
+ * requested size, all this used to have to go on) instead reads past
+ * the old block into whatever a *later* allocation already put there,
+ * silently splicing unrelated live data into the grown copy. */
 void *
 realloc (void *ptr, size_t size)
 {
   void *new = malloc (size);
+  long old_size;
+  size_t copy_size;
+
   if (ptr != 0 && new != 0)
     {
-      memcpy (new, ptr, size);
+      old_size = *(((long *) ptr) - 1);
+      copy_size = size;
+      if (old_size < size)
+        copy_size = old_size;
+      memcpy (new, ptr, copy_size);
       free (ptr);
     }
   return new;
