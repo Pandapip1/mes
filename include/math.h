@@ -32,6 +32,13 @@ double exp (double x);
 double fabs (double number);
 double floor (double x);
 double ldexp (double value, int exponent);
+/* Declared, and not only defined in lib/math/ldexpl.c, because TinyCC calls
+   it: tccpp.c builds a hexadecimal floating constant by hand and puts the
+   mantissa at its exponent with ldexpl.  Without a prototype in scope that
+   call went out under the implicit `int ldexpl ()' rule, so the compiler
+   read a long double return as an int and every hexadecimal float constant
+   in every program it built came out as zero. */
+long double ldexpl (long double value, int exponent);
 double log (double x);
 double modf (double value, double *integer_part);
 double pow (double base, double power);

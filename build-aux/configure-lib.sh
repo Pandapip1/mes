@@ -400,7 +400,7 @@ lib/string/strrchr.c
 lib/string/strstr.c
 lib/string/strupr.c
 lib/stub/sigaction.c
-lib/stub/ldexp.c
+lib/math/ldexp.c
 lib/stub/mprotect.c
 lib/stub/localtime.c
 lib/stub/putenv.c
@@ -414,6 +414,12 @@ lib/$mes_cpu-mes-$compiler/setjmp.c
 # floating-point constant -- and TinyCC compiles from this list.  MesCC
 # compiles libc+tcc, has no use for it, and would have to make sense of a long
 # double to get there.
+#
+# ldexp itself is a different matter and moved the other way, out of lib/stub
+# and into lib/math in the list above: on Windows tcc.h maps ldexpl onto
+# ldexp, since long double is a double there, so the call tccpp.c makes for a
+# hexadecimal float constant lands on ldexp and a stub returning zero turned
+# every such constant into zero.
 #
 # Note that everything between the quotes below is a file name: this is one
 # shell string, so a # in it is not a comment but an entry.
