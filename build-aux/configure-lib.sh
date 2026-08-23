@@ -387,9 +387,12 @@ lib/stdlib/strtoll.c
 lib/stdlib/strtoul.c
 lib/stdlib/strtoull.c
 lib/string/memmem.c
+lib/string/strcasecmp.c
 lib/string/strcat.c
 lib/string/strchr.c
+lib/string/strerror.c
 lib/string/strlwr.c
+lib/string/strncasecmp.c
 lib/string/strncpy.c
 lib/string/strrchr.c
 lib/string/strstr.c
@@ -455,11 +458,8 @@ lib/string/bcopy.c
 lib/string/bzero.c
 lib/string/index.c
 lib/string/rindex.c
-lib/string/strcasecmp.c
 lib/string/strcspn.c
 lib/string/strdup.c
-lib/string/strerror.c
-lib/string/strncasecmp.c
 lib/string/strncat.c
 lib/string/strpbrk.c
 lib/string/strspn.c
