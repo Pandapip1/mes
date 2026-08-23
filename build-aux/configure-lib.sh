@@ -527,7 +527,12 @@ lib/linux/sigprogmask.c
 fi
 
 if test $mes_kernel = windows; then
+    # x86-mes-gcc explicitly, where its six neighbours are $compiler: only a
+    # real C compiler's code ever calls __chkstk, MesCC emitting the whole
+    # prologue itself however large the frame, so there is no mescc file of
+    # this name to select and nothing that would want one.
     libc_gnu_SOURCES="$libc_gnu_SOURCES
+lib/windows/$mes_cpu-mes-gcc/chkstk.c
 lib/stub/settimer.c
 "
 fi
