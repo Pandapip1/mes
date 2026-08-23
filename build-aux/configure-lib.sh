@@ -533,7 +533,19 @@ if test $mes_kernel = windows; then
     # this name to select and nothing that would want one.
     libc_gnu_SOURCES="$libc_gnu_SOURCES
 lib/windows/$mes_cpu-mes-gcc/chkstk.c
+lib/stub/getegid.c
+lib/stub/geteuid.c
+lib/stub/getgid.c
+lib/stub/getrusage.c
+lib/stub/getuid.c
+lib/stub/ioctl.c
+lib/stub/mknod.c
+lib/stub/readlink.c
+lib/stub/setgid.c
 lib/stub/settimer.c
+lib/stub/setuid.c
+lib/stub/signal.c
+lib/stub/sigprogmask.c
 "
 fi
 
