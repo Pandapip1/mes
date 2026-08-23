@@ -35,8 +35,16 @@
 /* Windows shares Linux's numbers here because nothing on Windows consults
  * them directly: lib/windows/_open3.c reads the flags and works out the
  * DesiredAccess and CreateDisposition NtCreateFile actually wants.  Picking
- * the same constants means every caller above is unchanged. */
-#if __linux__ || __windows__
+ * the same constants means every caller above is unchanged.
+ *
+ * Three names for the one target because three things build this.  M2-Planet
+ * and MesCC are told __windows__ on the command line, that being what the
+ * rest of the PE32 bootstrap passes.  A TinyCC configured for PE says _WIN32
+ * of its own accord, and says __linux__ only when it is not -- so the round
+ * where tcc starts recompiling this library for Windows arrives with neither
+ * of the first two defined, and stopped here at "platform not supported".
+ * This is the only line in the tree that asks which system it is built for. */
+#if __linux__ || __windows__ || _WIN32
 #define O_RDONLY          0
 #define O_WRONLY          1
 #define O_RDWR            2
