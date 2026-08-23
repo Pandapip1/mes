@@ -2425,8 +2425,26 @@
                     local))
          (locals (cons local locals))
          (info (clone info #:locals locals))
+         (copy? (and struct?
+                     (pair? init)
+                     (pmatch init
+                       ((initzer-list . ,_) #f)
+                       ((initzer (initzer-list . ,_)) #f)
+                       (_ #t))))
          (local (cdr local)))
-    (init-local local init 0 info)))
+    ;; `struct s d = e;', with e an expression rather than a brace list, is
+    ;; the copy `struct s d; d = e;' makes -- so make it that way, rather
+    ;; than by init-local's own last resort, which puts the initialiser in a
+    ;; register and stores that one register.  For a struct the register
+    ;; holds its address, so what landed in d was the address of e in d's
+    ;; first word and nothing at all in the rest of it: wrong, silently,
+    ;; with only "unexpected size" on the error port to show for it.
+    ;; TinyCC's tccpe.c opens pe_write with exactly this,
+    ;; `struct pe_header pe_header = pe_template;', 376 bytes of PE header
+    ;; that would otherwise never be copied.
+    (if copy?
+        (ast->info `(assn-expr (p-expr (ident ,name)) (op "=") ,init) info)
+        (init-local local init 0 info))))
 
 (define (global->info storage type name o init info)
   (let* ((rank (->rank type))
