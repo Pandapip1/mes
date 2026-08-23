@@ -778,14 +778,29 @@
             (info (expr->register `(fctn-call (p-expr (ident ,function)) ,@rest) info)))
        (append-text info (wrap-as (as info 'r+value offset)))))
 
+    ;; The address of `s->field' is the pointer s holds, plus the offset.
+    ;; Getting at the pointer by taking the address of s and loading from it
+    ;; is right only while s is somewhere in memory to be addressed.  It is
+    ;; not, when s is a pointer this expression computed rather than read --
+    ;; `((type *) 0)', which is how <stddef.h> writes offsetof, and which
+    ;; has no address to take.  So take the value of s the ordinary way,
+    ;; which for an s that does live in memory is the same address-then-load
+    ;; and for one that does not is the pointer itself.
+    ;;
+    ;; A cast operand went to the case below before this, taking the address
+    ;; of what was cast: for offsetof's literal 0 there is none, and the
+    ;; compile stopped at `(p-expr (fixed "0"))' saying nothing of where it
+    ;; came from.  Only offsetof of a field below the first level reached
+    ;; here -- TinyCC's tccpe.c asks for opthdr.CheckSum -- a single-level
+    ;; one being read by another path entirely.
     ((i-sel (ident ,field) ,struct)
      (let* ((type (ast->basic-type struct info))
             (offset (field-offset info type field))
-            (info (expr->register* struct info))
-            (type (ast->type struct info)))
-       (append-text info (append (if (c-array? type) '()
-                                     (wrap-as (as info 'mem->r)))
-                                 (wrap-as (as info 'r+value offset))))))
+            (type* (ast->type struct info))
+            (info (if (c-array? type*)
+                      (expr->register* struct info)
+                      (expr->register struct info))))
+       (append-text info (wrap-as (as info 'r+value offset)))))
 
     ((array-ref ,index ,array)
      (let* ((info (expr->register index info))
