@@ -20,14 +20,21 @@
 
 #include <string.h>
 
+/* Null when no character of string is in stopset -- C99 7.21.5.4p3 -- and
+ * not, as this used to, a pointer to string's own terminator.  That pointer
+ * is not null, so every caller that asks "is there one of these in there?"
+ * was told yes about every string.  TinyCC's archiver asks exactly that,
+ * of the mode letters it does not implement: `tcc -ar rcs' found an "a" in
+ * "rcs" and refused to build any library at all. */
 char *
 strpbrk (char const *string, char const *stopset)
 {
   char *p = (char *) string;
   while (*p)
-    if (strchr (stopset, *p))
-      break;
-    else
-      p++;
-  return p;
+    {
+      if (strchr (stopset, *p))
+        return p;
+      p = p + 1;
+    }
+  return 0;
 }
