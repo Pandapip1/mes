@@ -64,21 +64,39 @@ char **environ;
 
 int main (int argc, char **argv, char **envp);
 
-#define __ARGV_MAX 256
-#define __ARG_BYTES_MAX 0x8000
-#define __ENVP_MAX 1024
-#define __ENV_BYTES_MAX 0x10000
+/* 16384, not 256.  Windows caps a command line at 32767 characters, so no
+ * argument can be shorter than one character and its separator and there
+ * can never be many more than that many of them: this is a bound the system
+ * already enforces, rather than a number chosen to fit the programs seen so
+ * far.  256 was such a number and it was wrong -- ntlibc's archiver line
+ * reached 272 arguments, argv stopped at 255, and `tcc -ar' archived the
+ * first 251 objects, exited 0, and wrote a library missing sixteen members
+ * with nothing said anywhere.  Pointers cost four bytes, so the array is
+ * 64K of .bss and the question is closed rather than deferred.
+ *
+ * The byte buffers are sized past what a 32767-character command line and
+ * a generous environment can hold, and -- unlike before -- are now checked
+ * rather than trusted: see __next_arg and __init_env. */
+#define __ARGV_MAX 16384
+#define __ARG_BYTES_MAX 0x9000
+#define __ENVP_MAX 4096
+#define __ENV_BYTES_MAX 0x20000
 
 char *__argv_buf[__ARGV_MAX];
 char __arg_bytes[__ARG_BYTES_MAX];
 char *__envp_buf[__ENVP_MAX];
 char __env_bytes[__ENV_BYTES_MAX];
 
+/* One past the end of __arg_bytes.  __next_arg refuses to write at or
+ * beyond it, rather than running off the buffer into whatever .bss holds
+ * next -- which is what it did before, unbounded. */
+char *__arg_bytes_end;
+
 /* One argument off the command line at *cursor, narrowed and unescaped into
  * *out_cursor, which this advances past the token and its NUL the way
  * *cursor is advanced past the token and its separator. Returns 0 (cursor
  * unmoved past trailing whitespace) when the command line has no more
- * tokens left. */
+ * tokens left, and -1 if the argument would not fit. */
 int
 __next_arg (char **cursor, char **out_cursor)
 {
@@ -119,11 +137,15 @@ __next_arg (char **cursor, char **out_cursor)
             {
               while (i < backslashes / 2)
                 {
+                  if (o >= __arg_bytes_end)
+                    return -1;
                   *o++ = '\\';
                   i = i + 1;
                 }
               if (backslashes % 2)
                 {
+                  if (o >= __arg_bytes_end)
+                    return -1;
                   *o++ = '"';
                   p += 2;
                 }
@@ -134,6 +156,8 @@ __next_arg (char **cursor, char **out_cursor)
             {
               while (i < backslashes)
                 {
+                  if (o >= __arg_bytes_end)
+                    return -1;
                   *o++ = '\\';
                   i = i + 1;
                 }
@@ -148,10 +172,14 @@ __next_arg (char **cursor, char **out_cursor)
           continue;
         }
 
+      if (o >= __arg_bytes_end)
+        return -1;
       *o++ = *p;
       p += 2;
     }
 
+  if (o >= __arg_bytes_end)
+    return -1;
   *o++ = 0;
 
   if (*p == ' ' || *p == '\t')
@@ -165,20 +193,28 @@ __next_arg (char **cursor, char **out_cursor)
 /* The environment block: consecutive NUL-terminated entries, ended by an
  * entry that is itself empty. No backslash or quote handling here -- that
  * is a command-line-parsing rule, not a Windows-strings-in-general one. */
-void
+int
 __init_env (char *env)
 {
   int n;
   char *o;
+  char *end;
   char c;
 
   n = 0;
   o = __env_bytes;
+  end = __env_bytes + __ENV_BYTES_MAX;
   while (*env != 0 && n < __ENVP_MAX - 1)
     {
       __envp_buf[n] = o;
       for (;;)
         {
+          if (o >= end)
+            {
+              __envp_buf[n] = 0;
+              environ = __envp_buf;
+              return -1;
+            }
           c = *env;
           *o++ = c;
           env += 2;
@@ -189,6 +225,12 @@ __init_env (char *env)
     }
   __envp_buf[n] = 0;
   environ = __envp_buf;
+
+  /* Anything left means the block did not fit: too many entries, since the
+   * byte case returned above. */
+  if (*env != 0)
+    return -1;
+  return 0;
 }
 
 void
@@ -203,6 +245,7 @@ _start (void)
   char *tok;
   int argc;
   int rc;
+  int overflow;
 
   peb = __peb ();
   pp = *(int *) (peb + 16);            /* PEB->ProcessParameters */
@@ -211,20 +254,45 @@ _start (void)
 
   cursor = cmdline;
   out = __arg_bytes;
+  __arg_bytes_end = __arg_bytes + __ARG_BYTES_MAX;
   argc = 0;
-  while (argc < __ARGV_MAX - 1)
+  overflow = 0;
+  while (1)
     {
+      if (argc >= __ARGV_MAX - 1)
+        {
+          overflow = 1;
+          break;
+        }
       tok = out;
-      if (!__next_arg (&cursor, &out))
+      rc = __next_arg (&cursor, &out);
+      if (rc == 0)
         break;
+      if (rc < 0)
+        {
+          overflow = 1;
+          break;
+        }
       __argv_buf[argc] = tok;
       argc = argc + 1;
     }
   __argv_buf[argc] = 0;
 
-  __init_env (envblock);
+  if (__init_env (envblock) < 0)
+    overflow = 1;
 
   __init_io (argc, __argv_buf, __envp_buf);
+
+  /* Said, not swallowed.  Running on with a truncated argv is how a `tcc
+   * -ar' with 272 arguments came to archive 251 objects, exit 0, and write
+   * a library missing sixteen members -- a failure that reaches its caller
+   * as a link error in some other package, hours later.  Refusing here
+   * costs a rebuild; continuing costs the afternoon. */
+  if (overflow)
+    {
+      eputs ("crt1: command line or environment too large\n");
+      _exit (1);
+    }
 
   rc = main (argc, __argv_buf, __envp_buf);
 
