@@ -356,10 +356,12 @@ lib/ctype/tolower.c
 lib/ctype/toupper.c
 lib/mes/abtod.c
 lib/mes/dtoab.c
+lib/mes/fdgets.c
 lib/mes/search-path.c
 lib/posix/execvp.c
 lib/stdio/fclose.c
 lib/stdio/fdopen.c
+lib/stdio/fgets.c
 lib/stdio/ferror.c
 lib/stdio/fflush.c
 lib/stdio/fopen.c
@@ -428,7 +430,6 @@ lib/math/ldexpl.c
 lib/math/ceil.c
 lib/math/fabs.c
 lib/math/floor.c
-lib/mes/fdgets.c
 lib/posix/alarm.c
 lib/posix/execl.c
 lib/posix/execlp.c
@@ -439,7 +440,6 @@ lib/posix/sleep.c
 lib/posix/unsetenv.c
 lib/stdio/clearerr.c
 lib/stdio/feof.c
-lib/stdio/fgets.c
 lib/stdio/fileno.c
 lib/stdio/freopen.c
 lib/stdio/fscanf.c
